@@ -1,0 +1,28 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+
+# Swift Package Manager
+.build/
+Packages/
+Package.pins
+Package.resolved
+.swiftpm/
+
+# CocoaPods (unused but standard)
+Pods/
+
+# macOS
+.DS_Store
+
+# Misc
+*.swp
+*~
+
+# Local AI / agent state (per-developer, never shared)
+.claude/
+.cursor/
+.aider*
