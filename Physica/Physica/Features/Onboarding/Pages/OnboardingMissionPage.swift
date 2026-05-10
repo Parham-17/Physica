@@ -3,10 +3,14 @@ import SwiftUI
 struct OnboardingMissionPage: View {
     var onComplete: () -> Void
 
-    @State private var sparkExpression: SparkView.Expression = .focused
+    @State private var sparkFlownIn = false
+    @State private var sparkOffset = CGSize(width: 0, height: 300)
+    @State private var sparkRotation: Double = -15
+    @State private var showFlyingPose = true
     @State private var wordsTriggered = false
     @State private var subtitleVisible = false
     @State private var trailProgress: CGFloat = 0
+    @State private var hover: CGFloat = 0
     @State private var autoAdvanceTask: Task<Void, Never>?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -28,7 +32,25 @@ struct OnboardingMissionPage: View {
             VStack(spacing: Spacing.lg) {
                 Spacer()
 
-                SparkView(mode: .blue, expression: sparkExpression, size: 120)
+                ZStack {
+                    if showFlyingPose {
+                        Image("SparkFlyingUp")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 180)
+                            .transition(.opacity)
+                    } else {
+                        Image("SparkFrontHappy")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 180)
+                            .offset(y: hover)
+                            .transition(.opacity)
+                    }
+                }
+                .offset(sparkOffset)
+                .rotationEffect(.degrees(sparkRotation))
+                .shadow(color: .voltBlue.opacity(0.4), radius: 25)
 
                 StaggeredTextView(
                     words: ["Explore.", "Discover.", "Fix the world."],
@@ -57,22 +79,37 @@ struct OnboardingMissionPage: View {
     }
 
     private func runSequence() async {
-        try? await Task.sleep(for: .milliseconds(reduceMotion ? 200 : 500))
+        try? await Task.sleep(for: .milliseconds(reduceMotion ? 200 : 300))
 
+        // Spark flies in from below with the flying pose
+        withAnimation(.spring(response: 1.0, dampingFraction: 0.7)) {
+            sparkOffset = .zero
+            sparkRotation = 0
+        }
+
+        try? await Task.sleep(for: .milliseconds(1000))
+
+        // Switch to standing/happy pose
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showFlyingPose = false
+        }
+
+        // Start hover
+        if !reduceMotion {
+            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
+                hover = -8
+            }
+        }
+
+        // Draw trail
         withAnimation(.easeOut(duration: 1.2)) {
             trailProgress = 1.0
         }
 
-        try? await Task.sleep(for: .milliseconds(400))
+        try? await Task.sleep(for: .milliseconds(500))
         wordsTriggered = true
 
-        try? await Task.sleep(for: .milliseconds(1600))
-
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-            sparkExpression = .happy
-        }
-
-        try? await Task.sleep(for: .milliseconds(400))
+        try? await Task.sleep(for: .milliseconds(1800))
 
         withAnimation(.easeOut(duration: 0.5)) {
             subtitleVisible = true

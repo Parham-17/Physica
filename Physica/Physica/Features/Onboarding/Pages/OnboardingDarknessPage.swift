@@ -3,9 +3,11 @@ import SwiftUI
 struct OnboardingDarknessPage: View {
     var onComplete: () -> Void
 
-    @State private var eyeVisible = false
+    @State private var sparkVisible = false
+    @State private var sparkScale: CGFloat = 2.5
     @State private var glowRadius: CGFloat = 0
-    @State private var ellipsisCount = 0
+    @State private var lookOffset: CGFloat = 0
+    @State private var showBlink = false
     @State private var autoAdvanceTask: Task<Void, Never>?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -14,34 +16,29 @@ struct OnboardingDarknessPage: View {
             Color.black.ignoresSafeArea()
 
             RadialGradient(
-                colors: [Color.voltBlue.opacity(0.3), Color.clear],
+                colors: [Color.voltBlue.opacity(0.25), Color.clear],
                 center: .center,
                 startRadius: 0,
                 endRadius: glowRadius
             )
             .ignoresSafeArea()
 
-            VStack(spacing: Spacing.lg) {
-                if eyeVisible {
-                    Circle()
-                        .fill(Color.voltBlue)
-                        .frame(width: 36, height: 36)
-                        .overlay(
-                            Circle()
-                                .fill(.white.opacity(0.75))
-                                .frame(width: 10, height: 10)
-                                .offset(x: -4, y: -4)
+            if sparkVisible {
+                Image(showBlink ? "SparkFrontBlinking" : "SparkFrontWow")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 220)
+                    .scaleEffect(sparkScale)
+                    .offset(x: lookOffset)
+                    .mask(
+                        RadialGradient(
+                            colors: [.white, .white, .clear],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: glowRadius
                         )
-                        .shadow(color: .voltBlue, radius: 18)
-                        .transition(.scale.combined(with: .opacity))
-                }
-
-                if ellipsisCount > 0 {
-                    Text(String(repeating: ".", count: ellipsisCount))
-                        .font(.gameTitle)
-                        .foregroundStyle(.white.opacity(0.6))
-                        .transition(.opacity)
-                }
+                    )
+                    .transition(.opacity)
             }
         }
         .contentShape(Rectangle())
@@ -51,24 +48,48 @@ struct OnboardingDarknessPage: View {
     }
 
     private func runSequence() async {
-        let delay: Duration = reduceMotion ? .milliseconds(300) : .milliseconds(1500)
-        try? await Task.sleep(for: delay)
+        let baseDelay: Duration = reduceMotion ? .milliseconds(300) : .milliseconds(1200)
+        try? await Task.sleep(for: baseDelay)
 
-        withAnimation(.spring(response: 0.6, dampingFraction: 0.6)) {
-            eyeVisible = true
+        withAnimation(.easeIn(duration: 0.8)) {
+            sparkVisible = true
+            glowRadius = 60
+        }
+
+        try? await Task.sleep(for: .milliseconds(1000))
+
+        withAnimation(.easeOut(duration: 1.0)) {
+            glowRadius = 180
         }
 
         try? await Task.sleep(for: .milliseconds(600))
 
-        withAnimation(.easeOut(duration: 1.5)) {
-            glowRadius = 120
+        // Look left
+        withAnimation(.easeInOut(duration: 0.6)) {
+            lookOffset = -15
+        }
+        try? await Task.sleep(for: .milliseconds(700))
+
+        // Blink
+        withAnimation(.easeInOut(duration: 0.15)) {
+            showBlink = true
+        }
+        try? await Task.sleep(for: .milliseconds(200))
+        withAnimation(.easeInOut(duration: 0.15)) {
+            showBlink = false
         }
 
-        for i in 1...3 {
-            try? await Task.sleep(for: .milliseconds(400))
-            withAnimation(.easeIn(duration: 0.2)) {
-                ellipsisCount = i
-            }
+        try? await Task.sleep(for: .milliseconds(400))
+
+        // Look right
+        withAnimation(.easeInOut(duration: 0.6)) {
+            lookOffset = 15
+        }
+        try? await Task.sleep(for: .milliseconds(800))
+
+        // Center
+        withAnimation(.easeInOut(duration: 0.4)) {
+            lookOffset = 0
         }
 
         autoAdvanceTask = Task {

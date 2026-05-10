@@ -3,9 +3,12 @@ import SwiftUI
 struct OnboardingBrokenPage: View {
     var onComplete: () -> Void
 
+    @State private var sparkPosition: CGFloat = 0
+    @State private var sparkSize: CGFloat = 200
     @State private var line1Visible = false
     @State private var line2Visible = false
     @State private var glitchActive = false
+    @State private var hover: CGFloat = 0
     @State private var autoAdvanceTask: Task<Void, Never>?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -35,18 +38,23 @@ struct OnboardingBrokenPage: View {
                 Spacer()
 
                 if line1Visible {
-                    Text("The laws of physics are breaking.")
-                        .font(.levelHeader)
+                    Text("The laws of physics\nare breaking.")
+                        .font(.gameTitle)
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
 
-                SparkView(mode: .blue, expression: .focused, size: 60)
+                Image("SparkFrontWow")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: sparkSize)
+                    .offset(x: sparkPosition, y: hover)
+                    .shadow(color: .voltBlue.opacity(0.3), radius: 20)
 
                 if line2Visible {
                     Text("Light. Electricity. All failing.")
-                        .font(.bodyGame)
+                        .font(.levelHeader)
                         .foregroundStyle(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -63,7 +71,23 @@ struct OnboardingBrokenPage: View {
     }
 
     private func runSequence() async {
-        try? await Task.sleep(for: .milliseconds(reduceMotion ? 200 : 600))
+        if !reduceMotion {
+            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
+                hover = -6
+            }
+        }
+
+        try? await Task.sleep(for: .milliseconds(reduceMotion ? 200 : 500))
+
+        // Spark flies in from right side
+        sparkPosition = 300
+        sparkSize = 80
+        withAnimation(.spring(response: 0.8, dampingFraction: 0.65)) {
+            sparkPosition = 0
+            sparkSize = 120
+        }
+
+        try? await Task.sleep(for: .milliseconds(800))
 
         withAnimation(.easeOut(duration: 0.5)) {
             line1Visible = true
