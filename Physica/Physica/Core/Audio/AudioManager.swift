@@ -12,6 +12,8 @@ final class AudioManager {
         case lockedAttempt = "locked_attempt"
         case wireConnect = "wire_connect"
         case bulbLight = "bulb_light"
+        case sparkWake = "spark_wake"
+        case glitch = "glitch"
     }
 
     enum Ambient: String {

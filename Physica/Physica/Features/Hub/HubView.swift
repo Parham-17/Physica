@@ -5,6 +5,11 @@ struct HubView: View {
     @Environment(AppRouter.self) private var router
     @Environment(AudioManager.self) private var audio
     @Query private var progressList: [Progress]
+    @State private var buttonVisible = false
+
+    private var isFirstLaunch: Bool {
+        (progressList.first?.totalXP ?? 0) == 0
+    }
 
     var body: some View {
         ZStack {
@@ -18,7 +23,7 @@ struct HubView: View {
             )
             .ignoresSafeArea()
 
-            VoltCitySkyline()
+            VoltCitySkylineView()
                 .frame(height: 200)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 .padding(.bottom, 40)
@@ -61,10 +66,20 @@ struct HubView: View {
                 .buttonStyle(.plain)
                 .padding(.horizontal, Spacing.lg)
                 .padding(.bottom, Spacing.xl)
+                .opacity(buttonVisible ? 1 : 0)
+                .offset(y: buttonVisible ? 0 : 30)
             }
         }
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
+        .onAppear {
+            let delay: Double = isFirstLaunch ? 1.0 : 0
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                    buttonVisible = true
+                }
+            }
+        }
     }
 
     private var welcomeSubtitle: String {
@@ -77,47 +92,6 @@ struct HubView: View {
     }
 }
 
-private struct VoltCitySkyline: View {
-    var body: some View {
-        GeometryReader { proxy in
-            let columnCount = 11
-            let totalSpacing: CGFloat = CGFloat(columnCount - 1) * 6
-            let columnWidth = (proxy.size.width - totalSpacing - Spacing.lg * 2) / CGFloat(columnCount)
-
-            HStack(alignment: .bottom, spacing: 6) {
-                ForEach(0..<columnCount, id: \.self) { i in
-                    buildingColumn(index: i, width: columnWidth)
-                }
-            }
-            .padding(.horizontal, Spacing.lg)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-        }
-    }
-
-    @ViewBuilder
-    private func buildingColumn(index i: Int, width: CGFloat) -> some View {
-        let baseHeight: Int = 70 + (i % 3) * 32 + (i % 2) * 12
-        let height: CGFloat = CGFloat(baseHeight)
-        let isLit: Bool = (i % 3 == 1) || (i % 5 == 0)
-        ZStack(alignment: .top) {
-            RoundedRectangle(cornerRadius: 4)
-                .fill(Color.shadowMid)
-                .frame(width: width, height: height)
-            VStack(spacing: 6) {
-                ForEach(0..<3, id: \.self) { row in
-                    HStack(spacing: 4) {
-                        ForEach(0..<2, id: \.self) { col in
-                            Circle()
-                                .fill(Color.voltYellow.opacity(isLit && (row + col) % 2 == 0 ? 0.85 : 0.12))
-                                .frame(width: 4, height: 4)
-                        }
-                    }
-                }
-            }
-            .padding(.top, 12)
-        }
-    }
-}
 
 #Preview {
     HubView()

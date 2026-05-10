@@ -1,11 +1,25 @@
 import SwiftUI
+import SwiftData
 
 struct RootView: View {
     @Environment(AppRouter.self) private var router
+    @Query private var progressList: [Progress]
+
+    private var onboardingCompleted: Bool {
+        progressList.first?.onboardingCompleted ?? false
+    }
 
     var body: some View {
+        if onboardingCompleted {
+            mainContent
+        } else {
+            OnboardingFlowView()
+        }
+    }
+
+    private var mainContent: some View {
         @Bindable var router = router
-        NavigationStack(path: $router.path) {
+        return NavigationStack(path: $router.path) {
             HubView()
                 .navigationDestination(for: NavRoute.self) { route in
                     destination(for: route)
