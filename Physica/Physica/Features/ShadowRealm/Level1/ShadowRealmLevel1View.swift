@@ -3,6 +3,7 @@ import SwiftData
 
 struct ShadowRealmLevel1View: View {
     @State private var state = ShadowRealmLevel1State()
+    @State private var movementTask: Task<Void, Never>? = nil
     @Environment(AppRouter.self) private var router
     @Environment(AudioManager.self) private var audio
     @Environment(\.modelContext) private var modelContext
@@ -13,6 +14,7 @@ struct ShadowRealmLevel1View: View {
             ZStack {
                 Color.shadowDeep.ignoresSafeArea()
 
+                // Cave revealed only inside the directional light cone
                 if state.isLightOn {
                     CaveEnvironmentView(
                         size: proxy.size,
@@ -22,53 +24,79 @@ struct ShadowRealmLevel1View: View {
                         discoveries: state.discoveries,
                         batReacted: state.batReacted
                     )
-                    .opacity(state.isLightOn ? 1 : 0)
                     .mask(
-                        LightMask(
-                            sparkPosition: actualPosition(state.sparkPositionNormalized, in: proxy.size),
-                            radius: lightRadius(in: proxy.size)
+                        LightConeShape(
+                            origin: actualPosition(state.sparkPositionNormalized, in: proxy.size),
+                            radius: lightConeRadius(in: proxy.size),
+                            headingDegrees: state.headingDegrees,
+                            coneAngleDegrees: 120
                         )
                     )
                     .transition(.opacity)
                 }
 
+                // The visual cone glow
                 if state.isLightOn {
-                    LightConeView(
-                        position: actualPosition(state.sparkPositionNormalized, in: proxy.size),
-                        radius: lightRadius(in: proxy.size) * 0.6,
+                    DirectionalLightConeView(
+                        origin: actualPosition(state.sparkPositionNormalized, in: proxy.size),
+                        radius: lightConeRadius(in: proxy.size),
+                        headingDegrees: state.headingDegrees,
                         color: .torchYellow
                     )
                 }
 
-                SparkLayer(
-                    state: state,
-                    proxySize: proxy.size,
-                    showAttentionPulse: shouldShowAttentionPulse,
-                    onTap: handleTap,
-                    onDrag: handleDrag
-                )
+                // Spark (back view, rotates to face heading)
+                sparkLayer(in: proxy.size)
 
-                HintTrailView(
-                    show: state.hintEngine.currentLevel == .strong && !state.discoveries.contains(.exit),
-                    from: actualPosition(state.sparkPositionNormalized, in: proxy.size),
-                    to: actualPosition(state.exitPosition, in: proxy.size)
-                )
+                // Idle hint (subtle ring around Spark before first tap)
+                if !state.isLightOn && shouldShowAttentionPulse {
+                    AttentionPulse()
+                        .position(actualPosition(state.sparkPositionNormalized, in: proxy.size))
+                }
+
+                // Joystick in bottom-right corner
+                if state.isLightOn && state.phase == .exploring {
+                    VirtualJoystick(size: 130) { vec in
+                        state.setJoystick(vec)
+                    }
+                    .padding(.trailing, Spacing.lg)
+                    .padding(.bottom, Spacing.xl)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .transition(.opacity)
+                }
+
+                // First-tap hint
+                if !state.isLightOn {
+                    Text("Tap Spark to turn on the light")
+                        .font(.hintCaption)
+                        .foregroundStyle(.white.opacity(0.55))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                        .padding(.bottom, Spacing.xxl)
+                        .transition(.opacity)
+                }
             }
             .onAppear {
                 state.hintEngine.start()
                 audio.startAmbient(.shadowCave)
+                startMovementLoop()
             }
             .onDisappear {
                 state.hintEngine.stop()
                 audio.stopAmbient()
+                stopMovementLoop()
             }
             .onChange(of: state.phase) { _, newPhase in
                 handlePhaseChange(newPhase)
             }
+            .onChange(of: state.discoveries) { old, new in
+                if new.subtracting(old).isEmpty == false {
+                    audio.play(.discoveryChime)
+                }
+            }
             .fullScreenCover(isPresented: completionBinding) {
                 LevelCompleteView(
                     stars: state.starsEarned,
-                    conceptLearned: "Light reveals what it touches.",
+                    conceptLearned: "Light reveals only what it touches.",
                     onContinue: { state.startTest() }
                 )
             }
@@ -85,14 +113,51 @@ struct ShadowRealmLevel1View: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
+    // MARK: - Spark visual
+
+    @ViewBuilder
+    private func sparkLayer(in size: CGSize) -> some View {
+        let pos = actualPosition(state.sparkPositionNormalized, in: size)
+        Image("SparkBack")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 88, height: 88)
+            .rotationEffect(.degrees(state.headingDegrees))
+            .shadow(color: state.isLightOn ? .torchYellow.opacity(0.4) : .voltBlue.opacity(0.5), radius: 12)
+            .position(pos)
+            .onTapGesture { handleTap() }
+            .animation(.easeInOut(duration: 0.25), value: state.headingDegrees)
+    }
+
+    // MARK: - Movement loop
+
+    private func startMovementLoop() {
+        stopMovementLoop()
+        movementTask = Task { @MainActor in
+            var last = Date()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(16))
+                let now = Date()
+                let dt = now.timeIntervalSince(last)
+                last = now
+                state.tickMovement(deltaTime: dt)
+            }
+        }
+    }
+
+    private func stopMovementLoop() {
+        movementTask?.cancel()
+        movementTask = nil
+    }
+
     // MARK: - Layout helpers
 
     private func actualPosition(_ normalized: CGPoint, in size: CGSize) -> CGPoint {
         CGPoint(x: normalized.x * size.width, y: normalized.y * size.height)
     }
 
-    private func lightRadius(in size: CGSize) -> CGFloat {
-        min(size.width, size.height) * 0.42
+    private func lightConeRadius(in size: CGSize) -> CGFloat {
+        min(size.width, size.height) * 0.52
     }
 
     // MARK: - Phase / hint visuals
@@ -102,17 +167,11 @@ struct ShadowRealmLevel1View: View {
     }
 
     private var completionBinding: Binding<Bool> {
-        Binding(
-            get: { state.phase == .complete },
-            set: { _ in }
-        )
+        Binding(get: { state.phase == .complete }, set: { _ in })
     }
 
     private var testBinding: Binding<Bool> {
-        Binding(
-            get: { state.phase == .test },
-            set: { _ in }
-        )
+        Binding(get: { state.phase == .test }, set: { _ in })
     }
 
     // MARK: - Interaction
@@ -120,22 +179,8 @@ struct ShadowRealmLevel1View: View {
     private func handleTap() {
         guard state.phase == .dark else { return }
         audio.play(.lightOn)
-        withAnimation(.easeOut(duration: 0.7)) {
+        withAnimation(.easeOut(duration: 0.6)) {
             state.tapSpark()
-        }
-    }
-
-    private func handleDrag(value: DragGesture.Value, in size: CGSize) {
-        guard state.isLightOn, state.phase == .exploring else { return }
-        let normalized = CGPoint(
-            x: value.location.x / size.width,
-            y: value.location.y / size.height
-        )
-        let prevDiscoveries = state.discoveries
-        state.moveSpark(toNormalized: normalized)
-        let newDiscoveries = state.discoveries.subtracting(prevDiscoveries)
-        if !newDiscoveries.isEmpty {
-            audio.play(.discoveryChime)
         }
     }
 
@@ -149,7 +194,7 @@ struct ShadowRealmLevel1View: View {
 
     private var postLevelQuestion: PostLevelTestQuestion {
         PostLevelTestQuestion(
-            prompt: "Spark's eye is off. The cave is dark. Spark walks forward.\nWhat does Spark see?",
+            prompt: "Spark walks through a dark cave with his flashlight off.\nWhat can Spark see?",
             options: ["The whole cave", "Nothing", "Only the floor"],
             correctIndex: 1,
             illustrationSymbol: "moon.stars.fill"
@@ -164,111 +209,21 @@ struct ShadowRealmLevel1View: View {
     }
 }
 
-// MARK: - Light mask: discovers cave only inside the cone radius
+// MARK: - Attention pulse (subtle ring before first tap)
 
-private struct LightMask: View {
-    let sparkPosition: CGPoint
-    let radius: CGFloat
-
+private struct AttentionPulse: View {
+    @State private var scale: CGFloat = 1.0
     var body: some View {
-        ZStack {
-            RadialGradient(
-                colors: [.white, .white.opacity(0.85), .white.opacity(0.0)],
-                center: .center,
-                startRadius: 8,
-                endRadius: radius
-            )
-            .frame(width: radius * 2, height: radius * 2)
-            .position(sparkPosition)
-        }
-    }
-}
-
-// MARK: - Spark + interactions layer
-
-private struct SparkLayer: View {
-    let state: ShadowRealmLevel1State
-    let proxySize: CGSize
-    let showAttentionPulse: Bool
-    let onTap: () -> Void
-    let onDrag: (DragGesture.Value, CGSize) -> Void
-
-    @State private var pulseScale: CGFloat = 1.0
-
-    var body: some View {
-        ZStack {
-            if showAttentionPulse {
-                Circle()
-                    .stroke(Color.torchYellow.opacity(0.5), lineWidth: 2)
-                    .frame(width: 110, height: 110)
-                    .scaleEffect(pulseScale)
-                    .opacity(2 - pulseScale)
-                    .position(
-                        x: state.sparkPositionNormalized.x * proxySize.width,
-                        y: state.sparkPositionNormalized.y * proxySize.height
-                    )
-                    .onAppear {
-                        withAnimation(.easeOut(duration: 1.4).repeatForever(autoreverses: false)) {
-                            pulseScale = 1.6
-                        }
-                    }
-                    .onDisappear { pulseScale = 1.0 }
-            }
-
-            SparkView(
-                mode: state.isLightOn ? .yellow : .blue,
-                expression: sparkExpression,
-                size: 84
-            )
-            .position(
-                x: state.sparkPositionNormalized.x * proxySize.width,
-                y: state.sparkPositionNormalized.y * proxySize.height
-            )
-            .onTapGesture { onTap() }
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        onDrag(value, proxySize)
-                    }
-            )
-        }
-    }
-
-    private var sparkExpression: SparkView.Expression {
-        switch state.phase {
-        case .dark: return .curious
-        case .exploring: return state.discoveries.isEmpty ? .focused : .happy
-        case .complete, .test, .finished: return .happy
-        }
-    }
-}
-
-// MARK: - Strong-hint trail (60s+ no exit)
-
-private struct HintTrailView: View {
-    let show: Bool
-    let from: CGPoint
-    let to: CGPoint
-    @State private var phase: CGFloat = 0
-
-    var body: some View {
-        if show {
-            Path { path in
-                path.move(to: from)
-                path.addLine(to: to)
-            }
-            .stroke(
-                Color.torchYellow.opacity(0.5),
-                style: StrokeStyle(lineWidth: 3, dash: [6, 10], dashPhase: phase)
-            )
-            .blendMode(.screen)
-            .allowsHitTesting(false)
+        Circle()
+            .stroke(Color.torchYellow.opacity(0.5), lineWidth: 2)
+            .frame(width: 110, height: 110)
+            .scaleEffect(scale)
+            .opacity(2 - scale)
             .onAppear {
-                withAnimation(.linear(duration: 1.0).repeatForever(autoreverses: false)) {
-                    phase = 32
+                withAnimation(.easeOut(duration: 1.4).repeatForever(autoreverses: false)) {
+                    scale = 1.6
                 }
             }
-        }
     }
 }
 
