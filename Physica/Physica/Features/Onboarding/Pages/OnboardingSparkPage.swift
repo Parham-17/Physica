@@ -6,7 +6,6 @@ struct OnboardingSparkPage: View {
     @State private var bodyRevealed = false
     @State private var sparkScale: CGFloat = 0.85
     @State private var line1Visible = false
-    @State private var waveAngle: Double = -6
     @State private var hover: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -31,9 +30,8 @@ struct OnboardingSparkPage: View {
             VStack(spacing: Spacing.lg) {
                 Spacer()
 
-                SparkAnimated(imageName: "SparkFrontHello", size: 200)
+                SparkHelloWaving(size: 200)
                     .scaleEffect(sparkScale)
-                    .rotationEffect(.degrees(waveAngle), anchor: UnitPoint(x: 0.5, y: 0.85))
                     .offset(y: hover)
                     .shadow(color: .voltBlue.opacity(0.4), radius: 30)
 
@@ -77,12 +75,6 @@ struct OnboardingSparkPage: View {
             withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
                 hover = -8
             }
-            // Slow waving motion (rocking)
-            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
-                waveAngle = 6
-            }
-        } else {
-            waveAngle = 0
         }
 
         try? await Task.sleep(for: .milliseconds(800))
