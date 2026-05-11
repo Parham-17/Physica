@@ -37,6 +37,8 @@ struct RootView: View {
             switch n {
             case 1:
                 ShadowRealmLevel1View()
+            case 2:
+                ShadowRealmLevel2View()
             default:
                 ShadowRealmPlaceholderView(levelNumber: n)
             }
