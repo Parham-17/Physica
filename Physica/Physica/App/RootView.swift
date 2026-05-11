@@ -20,7 +20,7 @@ struct RootView: View {
     private var mainContent: some View {
         @Bindable var router = router
         return NavigationStack(path: $router.path) {
-            HubView()
+            HomeView()
                 .navigationDestination(for: NavRoute.self) { route in
                     destination(for: route)
                 }
