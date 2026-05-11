@@ -118,10 +118,7 @@ struct ShadowRealmLevel1View: View {
     @ViewBuilder
     private func sparkLayer(in size: CGSize) -> some View {
         let pos = actualPosition(state.sparkPositionNormalized, in: size)
-        Image("SparkBack")
-            .resizable()
-            .scaledToFit()
-            .frame(width: 88, height: 88)
+        SparkBackWithPropeller(size: 88)
             .rotationEffect(.degrees(state.headingDegrees))
             .shadow(color: state.isLightOn ? .torchYellow.opacity(0.4) : .voltBlue.opacity(0.5), radius: 12)
             .position(pos)
@@ -206,6 +203,45 @@ struct ShadowRealmLevel1View: View {
         store.recordLevelCompletion(levelID: "shadow-realm.1", stars: state.starsEarned, xp: 50)
         state.finish()
         router.popToRoot()
+    }
+}
+
+// MARK: - SparkBack with spinning propeller blades overlay
+
+private struct SparkBackWithPropeller: View {
+    let size: CGFloat
+
+    @State private var propAngle: Double = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    // Pivot in normalized image coords (back view: blade center is at ~50% x, 15% y)
+    private let propellerPivot = UnitPoint(x: 0.498, y: 0.153)
+
+    var body: some View {
+        ZStack {
+            Image("SparkBack")
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+
+            Image("SparkBackPropellerBlades")
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+                .rotationEffect(.degrees(propAngle), anchor: propellerPivot)
+                .rotation3DEffect(
+                    .degrees(65),
+                    axis: (x: 1, y: 0, z: 0),
+                    anchor: propellerPivot
+                )
+        }
+        .frame(width: size, height: size)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.linear(duration: 0.6).repeatForever(autoreverses: false)) {
+                propAngle = 360
+            }
+        }
     }
 }
 
