@@ -38,9 +38,9 @@ struct OnboardingFlowView: View {
     private var pageContent: some View {
         switch currentPage {
         case 0:
-            OnboardingDarknessPage { advancePage() }
-        case 1:
             OnboardingSparkPage { advancePage() }
+        case 1:
+            OnboardingTroublePage { advancePage() }
         case 2:
             OnboardingBrokenPage { advancePage() }
         case 3:

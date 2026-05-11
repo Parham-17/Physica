@@ -3,10 +3,9 @@ import SwiftUI
 struct OnboardingBrokenPage: View {
     var onComplete: () -> Void
 
-    @State private var sparkPosition: CGFloat = 0
-    @State private var sparkSize: CGFloat = 200
+    @State private var sparkPosition: CGFloat = 300
+    @State private var sparkVisible = false
     @State private var line1Visible = false
-    @State private var line2Visible = false
     @State private var glitchActive = false
     @State private var hover: CGFloat = 0
     @State private var autoAdvanceTask: Task<Void, Never>?
@@ -22,7 +21,10 @@ struct OnboardingBrokenPage: View {
                 )
 
                 LinearGradient(
-                    colors: [Color(red: 0.12, green: 0.14, blue: 0.26), Color(red: 0.20, green: 0.14, blue: 0.08)],
+                    colors: [
+                        Color(red: 0.03, green: 0.04, blue: 0.08),
+                        Color.black
+                    ],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -45,19 +47,10 @@ struct OnboardingBrokenPage: View {
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
 
-                Image("SparkFrontWow")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: sparkSize)
-                    .offset(x: sparkPosition, y: hover)
-                    .shadow(color: .voltBlue.opacity(0.3), radius: 20)
-
-                if line2Visible {
-                    Text("Light. Electricity. All failing.")
-                        .font(.levelHeader)
-                        .foregroundStyle(.white.opacity(0.7))
-                        .multilineTextAlignment(.center)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                if sparkVisible {
+                    SparkAnimated(imageName: "SparkFrontWow", size: 120)
+                        .offset(x: sparkPosition, y: hover)
+                        .shadow(color: .voltBlue.opacity(0.3), radius: 20)
                 }
 
                 Spacer()
@@ -77,32 +70,23 @@ struct OnboardingBrokenPage: View {
             }
         }
 
-        try? await Task.sleep(for: .milliseconds(reduceMotion ? 200 : 500))
+        try? await Task.sleep(for: .milliseconds(reduceMotion ? 200 : 400))
 
-        // Spark flies in from right side
-        sparkPosition = 300
-        sparkSize = 80
+        sparkVisible = true
         withAnimation(.spring(response: 0.8, dampingFraction: 0.65)) {
             sparkPosition = 0
-            sparkSize = 120
         }
 
-        try? await Task.sleep(for: .milliseconds(800))
+        try? await Task.sleep(for: .milliseconds(700))
 
         withAnimation(.easeOut(duration: 0.5)) {
             line1Visible = true
         }
 
-        try? await Task.sleep(for: .milliseconds(500))
+        try? await Task.sleep(for: .milliseconds(400))
 
         withAnimation(.easeIn(duration: 0.3)) {
             glitchActive = true
-        }
-
-        try? await Task.sleep(for: .milliseconds(800))
-
-        withAnimation(.easeOut(duration: 0.5)) {
-            line2Visible = true
         }
 
         autoAdvanceTask = Task {
