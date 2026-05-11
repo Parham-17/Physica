@@ -29,6 +29,11 @@ struct SparkAnimated: View {
                     .scaledToFit()
                     .frame(width: size, height: size)
                     .rotationEffect(.degrees(propAngle), anchor: propellerPivot)
+                    .rotation3DEffect(
+                        .degrees(65),
+                        axis: (x: 1, y: 0, z: 0),
+                        anchor: propellerPivot
+                    )
                     .onAppear {
                         guard !reduceMotion else { return }
                         withAnimation(.linear(duration: 0.6).repeatForever(autoreverses: false)) {
@@ -71,12 +76,17 @@ struct SparkHelloWaving: View {
                 .frame(width: size, height: size)
                 .rotationEffect(.degrees(armAngle), anchor: shoulderPivot)
 
-            // Rotating propeller blades
+            // Rotating propeller blades, tilted forward for helicopter look
             Image("SparkPropellerBlades")
                 .resizable()
                 .scaledToFit()
                 .frame(width: size, height: size)
                 .rotationEffect(.degrees(propAngle), anchor: propellerPivot)
+                .rotation3DEffect(
+                    .degrees(65),
+                    axis: (x: 1, y: 0, z: 0),
+                    anchor: propellerPivot
+                )
         }
         .frame(width: size, height: size)
         .onAppear {
