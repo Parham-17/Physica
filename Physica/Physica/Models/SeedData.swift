@@ -2,20 +2,15 @@ import Foundation
 import SwiftData
 
 enum SeedData {
-    private static let shadowLevelTitles = [
-        "First Light",
-        "Things That Block",
-        "Closer & Bigger",
-        "Match the Shadow",
-        "Through Or Not"
-    ]
-
-    private static let voltLevelTitles = [
-        "Close the Loop",
-        "Cut the Wire",
-        "Flip the Switch",
-        "What Lets It Through",
-        "Two Lights, One Battery"
+    /// Light Realm — World 1 modules, per PIPELINE.md §7.
+    private static let lightModules: [(id: String, number: Int, title: String)] = [
+        ("light-realm.m1", 1, "The Sleeping Beacon"),
+        ("light-realm.m2", 2, "The Line of Dawn"),
+        ("light-realm.m3", 3, "Shadow Garden"),
+        ("light-realm.m4", 4, "Crystal Gate"),
+        ("light-realm.m5", 5, "Pinhole Studio"),
+        ("light-realm.m6", 6, "Mirrorworks"),
+        ("light-realm.m7", 7, "Eclipse Tower")
     ]
 
     static func populateIfNeeded(_ context: ModelContext) {
@@ -33,22 +28,22 @@ enum SeedData {
     }
 
     private static func seedRealms(into context: ModelContext) {
-        let shadow = Realm(
-            id: "shadow-realm",
-            displayName: "Shadow Realm",
+        // World 1 — Light Realm (V1 scope)
+        let light = Realm(
+            id: "light-realm",
+            displayName: "Light Realm",
             subtitle: "Light & Shadows",
             order: 1,
             isUnlocked: true
         )
-        for (i, title) in shadowLevelTitles.enumerated() {
-            let level = Level(id: "shadow-realm.\(i + 1)", number: i + 1, title: title)
-            level.realm = shadow
-            shadow.levels.append(level)
+        for entry in lightModules {
+            let module = Level(id: entry.id, number: entry.number, title: entry.title)
+            module.realm = light
+            light.levels.append(module)
         }
-        let shadowBoss = Level(id: "shadow-realm.boss", number: 99, title: "Escape the Cave")
-        shadowBoss.realm = shadow
-        shadow.levels.append(shadowBoss)
+        context.insert(light)
 
+        // Worlds 2–5 — locked placeholders. Modules ship when each world enters scope.
         let volt = Realm(
             id: "volt-city",
             displayName: "Volt City",
@@ -56,16 +51,31 @@ enum SeedData {
             order: 2,
             isUnlocked: false
         )
-        for (i, title) in voltLevelTitles.enumerated() {
-            let level = Level(id: "volt-city.\(i + 1)", number: i + 1, title: title)
-            level.realm = volt
-            volt.levels.append(level)
-        }
-        let voltBoss = Level(id: "volt-city.boss", number: 99, title: "Repair the Robot")
-        voltBoss.realm = volt
-        volt.levels.append(voltBoss)
+        let magnetic = Realm(
+            id: "magnetic-peaks",
+            displayName: "Magnetic Peaks",
+            subtitle: "Magnetism",
+            order: 3,
+            isUnlocked: false
+        )
+        let echo = Realm(
+            id: "echo-valley",
+            displayName: "Echo Valley",
+            subtitle: "Sound & Vibration",
+            order: 4,
+            isUnlocked: false
+        )
+        let drift = Realm(
+            id: "drift-plains",
+            displayName: "Drift Plains",
+            subtitle: "Air & Pressure",
+            order: 5,
+            isUnlocked: false
+        )
 
-        context.insert(shadow)
         context.insert(volt)
+        context.insert(magnetic)
+        context.insert(echo)
+        context.insert(drift)
     }
 }

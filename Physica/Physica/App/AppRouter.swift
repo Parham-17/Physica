@@ -3,8 +3,7 @@ import Observation
 
 enum NavRoute: Hashable {
     case realmMap
-    case shadowLevel(Int)
-    case voltLevel(Int)
+    case module(String)   // module ID, e.g. "light-realm.m1"
     case profile
 }
 

@@ -70,7 +70,7 @@ private struct RealmCard: View {
 
     private var cardBackground: Color {
         switch realm.id {
-        case "shadow-realm": return Color(red: 0.10, green: 0.10, blue: 0.18)
+        case "light-realm": return Color(red: 0.10, green: 0.10, blue: 0.18)
         case "volt-city": return Color(red: 0.14, green: 0.16, blue: 0.28)
         default: return Color.realmMid
         }
@@ -91,14 +91,7 @@ private struct LevelTile: View {
                 return
             }
             audio.play(.tap)
-            switch realm.id {
-            case "shadow-realm":
-                router.push(.shadowLevel(level.number))
-            case "volt-city":
-                router.push(.voltLevel(level.number))
-            default:
-                break
-            }
+            router.push(.module(level.id))
         } label: {
             VStack(spacing: 4) {
                 Text(level.isBoss ? "★" : "\(level.number)")

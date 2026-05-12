@@ -33,7 +33,7 @@ struct RootView: View {
         switch route {
         case .realmMap:
             RealmMapView()
-        case .shadowLevel, .voltLevel:
+        case .module:
             modulePlaceholder
         case .profile:
             ProfilePlaceholderView()
