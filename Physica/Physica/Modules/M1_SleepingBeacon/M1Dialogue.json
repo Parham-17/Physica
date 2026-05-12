@@ -1,0 +1,53 @@
+{
+  "module": "M1",
+  "beats": [
+    {
+      "id": "m1_opening",
+      "type": "opening",
+      "speaker": "spark",
+      "expression": "curious",
+      "lines": [
+        "Where am I?",
+        "It is so dark."
+      ],
+      "trigger": "onSceneLoaded",
+      "showOnce": true
+    },
+    {
+      "id": "m1_discovery",
+      "type": "discovery",
+      "speaker": "spark",
+      "expression": "hopeful",
+      "lines": [
+        "You aimed the light at me.",
+        "I... I can see again."
+      ],
+      "trigger": "onSparkActivated",
+      "showOnce": true
+    },
+    {
+      "id": "m1_insight",
+      "type": "insight",
+      "speaker": "spark",
+      "expression": "steady",
+      "lines": [
+        "When light touches something here, it remembers how to wake up."
+      ],
+      "trigger": "onBeaconRestored",
+      "showOnce": true
+    },
+    {
+      "id": "m1_connection",
+      "type": "connection",
+      "speaker": "spark",
+      "expression": "steady",
+      "lines": [
+        "At night, when the streetlight on your block turns on,",
+        "the whole street remembers it exists.",
+        "Nothing changed except light."
+      ],
+      "trigger": "onContinueAfterInsight",
+      "showOnce": true
+    }
+  ]
+}

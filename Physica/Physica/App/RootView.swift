@@ -36,20 +36,35 @@ struct RootView: View {
         switch route {
         case .realmMap:
             RealmMapView()
-        case .module:
-            modulePlaceholder
+        case .module(let moduleID):
+            moduleScene(for: moduleID)
         case .profile:
             ProfilePlaceholderView()
         }
     }
 
-    private var modulePlaceholder: some View {
-        Text("Module under redesign — see PHYSICA_LIGHT_PIPELINE_V2.md")
-            .font(.bodyGame)
-            .foregroundStyle(.white.opacity(0.7))
-            .multilineTextAlignment(.center)
-            .padding(Spacing.lg)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.realmDark.ignoresSafeArea())
+    @ViewBuilder
+    private func moduleScene(for moduleID: String) -> some View {
+        switch moduleID {
+        case "light-realm.m1":
+            M1Scene()
+        default:
+            modulePlaceholder(for: moduleID)
+        }
+    }
+
+    private func modulePlaceholder(for moduleID: String) -> some View {
+        VStack(spacing: Spacing.md) {
+            Text(moduleID)
+                .font(.levelHeader)
+                .foregroundStyle(.white.opacity(0.85))
+            Text("Module under construction — see PIPELINE.md")
+                .font(.bodyGame)
+                .foregroundStyle(.white.opacity(0.55))
+                .multilineTextAlignment(.center)
+        }
+        .padding(Spacing.lg)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.realmDark.ignoresSafeArea())
     }
 }
