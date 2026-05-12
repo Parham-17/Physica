@@ -8,6 +8,7 @@ struct PhysicaApp: App {
     @State private var audioManager: AudioManager
     @State private var narrativeFlags: NarrativeFlags
     @State private var dialogue: DialogueController
+    @State private var chapterController: ChapterController
 
     init() {
         let flags = NarrativeFlags()
@@ -15,6 +16,7 @@ struct PhysicaApp: App {
         _audioManager = State(initialValue: AudioManager())
         _narrativeFlags = State(initialValue: flags)
         _dialogue = State(initialValue: DialogueController(flags: flags))
+        _chapterController = State(initialValue: ChapterController(flags: flags))
         self.modelContainer = ModelContainer.physica()
     }
 
@@ -25,6 +27,7 @@ struct PhysicaApp: App {
                 .environment(audioManager)
                 .environment(narrativeFlags)
                 .environment(dialogue)
+                .environment(chapterController)
         }
         .modelContainer(modelContainer)
     }
