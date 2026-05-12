@@ -19,11 +19,14 @@ struct RootView: View {
 
     private var mainContent: some View {
         @Bindable var router = router
-        return NavigationStack(path: $router.path) {
-            HomeView()
-                .navigationDestination(for: NavRoute.self) { route in
-                    destination(for: route)
-                }
+        return ZStack(alignment: .bottom) {
+            NavigationStack(path: $router.path) {
+                HomeView()
+                    .navigationDestination(for: NavRoute.self) { route in
+                        destination(for: route)
+                    }
+            }
+            DialogueOverlayView()
         }
         .preferredColorScheme(.dark)
     }
