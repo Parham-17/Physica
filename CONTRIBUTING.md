@@ -21,13 +21,13 @@ We use **short-lived feature branches off `main`**. No `develop`, no long-lived 
 
 | Prefix | When | Examples |
 |--------|------|----------|
-| `feat/` | New feature, level, mechanic | `feat/shadow-l2`, `feat/voltcity-l1`, `feat/profile-screen` |
-| `fix/` | Bug fix | `fix/spark-drag-conflict`, `fix/hub-skyline-overflow` |
+| `feat/` | New feature, module, mechanic | `feat/m1-sleeping-beacon`, `feat/m3-shadow-garden`, `feat/dialogue-overlay` |
+| `fix/` | Bug fix | `fix/spark-drag-conflict`, `fix/dialogue-overlap` |
 | `refactor/` | Code restructure, no behavior change | `refactor/extract-light-cone` |
-| `style/` | Visual / UI tweaks, no logic change | `style/realm-card-shadow` |
-| `docs/` | Documentation only | `docs/update-readme-w3` |
+| `style/` | Visual / UI tweaks, no logic change | `style/world-card-shadow` |
+| `docs/` | Documentation only | `docs/update-pipeline-m4` |
 | `chore/` | Build settings, dependencies, project file | `chore/bump-deployment-target` |
-| `art/` | Asset additions / replacements | `art/spark-rive-idle`, `art/cave-background-v2` |
+| `art/` | Asset additions / replacements | `art/spark-rive-idle`, `art/dawn-court-bg-v2` |
 
 Keep names under ~30 characters. The branch's purpose should be obvious from the name.
 
@@ -47,7 +47,7 @@ git checkout main
 git pull origin main
 
 # 2. Create your branch
-git checkout -b feat/shadow-l2
+git checkout -b feat/m1-sleeping-beacon
 
 # 3. Open Xcode, code, commit, repeat
 ```
@@ -56,12 +56,12 @@ git checkout -b feat/shadow-l2
 
 ```bash
 # Stage just what you want
-git add Physica/Features/ShadowRealm/Level2/ShadowRealmLevel2State.swift
+git add Physica/Modules/M1_SleepingBeacon/M1Coordinator.swift
 
 # (avoid 'git add .' — it grabs xcuserdata, .DS_Store, etc.)
 
 # Commit with our convention (see below)
-git commit -m "feat: add shadow L2 blocker state"
+git commit -m "feat: add M1 sleeping beacon coordinator"
 ```
 
 ### Pulling in others' changes mid-feature
@@ -80,8 +80,8 @@ Resolve any conflicts (see below), test that the app still builds, continue work
 ### Pushing
 
 ```bash
-git push -u origin feat/shadow-l2     # first push
-git push                               # subsequent pushes
+git push -u origin feat/m1-sleeping-beacon   # first push
+git push                                     # subsequent pushes
 ```
 
 ---
@@ -89,10 +89,10 @@ git push                               # subsequent pushes
 ## Pull Request Rules
 
 1. **One PR per branch**, scoped to one feature/fix.
-2. **PR title** uses the same convention as commits: `feat: add shadow l2 blocker mechanic`.
+2. **PR title** uses the same convention as commits: `feat: implement m1 sleeping beacon opening beat`.
 3. **PR description** must include:
    - **What** changed (1-3 bullets)
-   - **Why** (link to the level spec, issue, or design discussion)
+   - **Why** (link to the module spec in `PIPELINE.md`, issue, or design discussion)
    - **How to test** (the simulator steps to verify the change works)
    - Screenshots or screen-recordings for any visual change
 4. **Build before opening.** A red PR wastes everyone's time.
@@ -114,13 +114,13 @@ git push                               # subsequent pushes
 
 | Type | When | Example |
 |------|------|---------|
-| `init` | Project setup, scaffolding new realm | `init: scaffold magnetic peaks folder` |
-| `feat` | New feature / level / mechanic | `feat: add light reveal mask in shadow l1` |
-| `fix` | Bug fix | `fix: resolve gesture conflict on spark` |
-| `refactor` | Restructure, no behavior change | `refactor: extract LightConeView` |
-| `style` | UI / visual / formatting only | `style: align hub button shadow` |
-| `docs` | Documentation only | `docs: add backlog entry for echo valley` |
-| `chore` | Build / config / project file | `chore: bump iOS target to 26.4` |
+| `init` | Project setup, scaffolding a new world or module | `init: scaffold m3 shadow garden folder` |
+| `feat` | New feature / module / mechanic | `feat: implement m1 sleeping beacon opening beat` |
+| `fix` | Bug fix | `fix: resolve gesture conflict on spark portrait` |
+| `refactor` | Restructure, no behavior change | `refactor: extract LightConeView into Core/Light` |
+| `style` | UI / visual / formatting only | `style: align world card shadow` |
+| `docs` | Documentation only | `docs: clarify umbra glimpse cadence in pipeline` |
+| `chore` | Build / config / project file | `chore: bump iOS deployment target` |
 | `test` | Tests | `test: add HintEngine tick coverage` |
 | `art` | Asset add / replace | `art: add spark idle rive file` |
 
@@ -146,10 +146,12 @@ When `git rebase origin/main` or merge raises conflicts:
 
 | File | Why it conflicts | How to avoid |
 |------|------------------|--------------|
-| `App/RootView.swift` | New levels add destinations | Land routes in small batches, communicate before adding |
+| `App/RootView.swift` | New modules add destinations | Land routes in small batches, communicate before adding |
 | `App/AppRouter.swift` | New `NavRoute` cases | Same as above |
-| `Models/SeedData.swift` | Adding levels to a realm | Touch only when adding levels to your assigned realm |
-| `Core/Audio/AudioManager.swift` | New SFX enum cases | Add your enum case at the bottom of the enum to minimize conflicts |
+| `Models/SeedData.swift` | Adding modules to a world | Touch only when adding modules to your assigned world |
+| `Core/Audio/AudioManager.swift` | New SFX / ambient enum cases | Add your enum case at the bottom of the enum to minimize conflicts |
+| `Core/Dialogue/DialogueController.swift` | New beat triggers | Coordinate before adding new trigger types |
+| `Core/Narrative/NarrativeFlags.swift` | New flag entries | Same as above |
 | `.gitignore` | Rare, but possible | Talk first before adding broad ignores |
 
 ---
@@ -242,4 +244,4 @@ git checkout -- <file>
 
 ---
 
-*Last updated: May 8, 2026*
+*Last updated: 2026-05-12 — V2 migration*
