@@ -6,7 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		524F01DF2FB37B8A002ABEE5 /* Spark.icon in Resources */ = {isa = PBXBuildFile; fileRef = 524F01DE2FB37B8A002ABEE5 /* Spark.icon */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		524F01DE2FB37B8A002ABEE5 /* Spark.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Spark.icon; sourceTree = "<group>"; };
 		7D676FC22FAD1E8B00575CAB /* Physica.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Physica.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -40,6 +45,7 @@
 				7D676FC42FAD1E8B00575CAB /* Physica */,
 				7D4660782FAD544400764788 /* docs */,
 				7D676FC32FAD1E8B00575CAB /* Products */,
+				524F01DE2FB37B8A002ABEE5 /* Spark.icon */,
 			);
 			sourceTree = "<group>";
 		};
@@ -116,6 +122,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				524F01DF2FB37B8A002ABEE5 /* Spark.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -256,8 +263,9 @@
 		7D676FD02FAD1E8C00575CAB /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Spark;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 5YH873AVKF;
@@ -289,8 +297,9 @@
 		7D676FD12FAD1E8C00575CAB /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Spark;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 5YH873AVKF;

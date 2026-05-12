@@ -1,0 +1,48 @@
+{
+  "fill" : {
+    "automatic-gradient" : "extended-srgb:0.00000,0.53333,1.00000,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "Frame 14.png",
+          "name" : "Frame 14",
+          "position" : {
+            "scale" : 1.66,
+            "translation-in-points" : [
+              -0.8299999999999272,
+              0.8299999999999272
+            ]
+          }
+        },
+        {
+          "hidden" : false,
+          "image-name" : "Image.heif",
+          "name" : "Image",
+          "position" : {
+            "scale" : 0.5199999999999999,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
