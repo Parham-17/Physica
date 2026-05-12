@@ -1,72 +1,98 @@
-# Physica ⚡
+# Physica
 
-> A gamified physics learning app for middle schoolers.
-> *Brilliant × Duolingo, but for physics — and more game than lesson.*
+> A story-driven physics learning app for 10–14 year olds.
+> Spark walks the broken kingdoms of physics — and the player learns by walking with him.
 
 **Team:** Secret API · **Apple Developer Academy, Naples** · **Challenge 7**
 
 ---
 
-## Tech Stack
+## What is Physica?
 
-- **UI Framework:** SwiftUI
-- **State:** `@Observable` + `@Environment`
-- **Persistence:** SwiftData (local-only, zero backend cost)
-- **Animation:** SwiftUI native + Canvas; Rive planned for character/celebration polish (W8)
-- **Sound:** AVFoundation
-- **Minimum Target:** iOS 26
-- **Architecture:** MV + Services + per-level `@Observable` state
+An iOS app where the **physics is the mechanic** and the **story is the reason**. Players don't read lessons — they restore broken worlds alongside **Spark**, a small robot from Volt City, by *doing* the physics. Each chapter ends with Spark bridging the concept to a real-world example the kid actually sees in daily life (a streetlight, a dusty sunbeam, an ambulance with reversed lettering).
 
-See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full rule set.
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a PR.
+This is the pivot from V1's "Brilliant × Duolingo" framing: Physica is **interactable storytelling**, not a puzzle app with story bolted on.
+
+### The 5 worlds (long-term vision)
+
+1. **Light Realm** — Light & Shadows *(World 1, V1 scope)*
+2. **Volt City** — Electricity & Circuits *(World 2, stretch goal)*
+3. Magnetic Peaks — Magnetism
+4. Echo Valley — Sound
+5. Drift Plains — Air & Pressure
+
+V1 ships **Light Realm** (7 modules). World 2 is a stretch goal if time permits.
+
+### The 7 chapters of the Light Realm
+
+| # | Module | Concept |
+|---|---|---|
+| M1 | The Sleeping Beacon | Light reveals what it touches |
+| M2 | The Line of Dawn | Light travels in straight lines |
+| M3 | Shadow Garden | Source size shapes the shadow (umbra/penumbra) |
+| M4 | Crystal Gate | Transparent / translucent / opaque |
+| M5 | Pinhole Studio | The pinhole camera (eye analogue) |
+| M6 | Mirrorworks Arcade | Law of reflection + lateral inversion (the AMBULANCE moment) |
+| M7 | Eclipse Tower | Eclipses, balance, narrative resolution |
+
+Full module specs, narrative architecture, and the phased pipeline live in [`PIPELINE.md`](PIPELINE.md) — **this is the source of truth for the project**. Read it before contributing.
 
 ---
 
-## What is Physica?
+## Tech Stack
 
-An iOS app that teaches **Class 6 NCERT physics** through play. Students don't read lessons — they discover physics by interacting with **Spark**, a small robot from **Volt City** whose world's physics laws are breaking. Spark visits each broken realm to restore balance.
+- **Minimum iOS:** 18.0
+- **Shell (menus, world map, dialogue, settings):** SwiftUI + `@Observable`
+- **Game scenes (modules):** SpriteKit (or SwiftUI for simpler modules — decided per-module)
+- **Persistence:** SwiftData (local-only, zero backend cost)
+- **Audio:** AVFoundation
+- **Orientation:** Portrait only
 
-**Core loop:** `Play & Learn → Test → Earn → Unlock`
-
-The game *is* the lesson. Concepts emerge through play, never through tutorial text. Locked decisions are in [`CLAUDE.md`](CLAUDE.md) (creative + product foundation).
-
-### Worlds shipping in v1.0
-1. 🌑 **Shadow Realm** — Light & Shadows
-2. ⚡ **Volt City** — Electricity & Circuits
-
-### Future expansion (post-Academy)
-- 🧲 Magnetic Peaks · 🔊 Echo Valley · 💨 Drift Plains · *one realm per physics topic*
+See [`PIPELINE.md`](PIPELINE.md) §3 for full tech details and [`ARCHITECTURE.md`](ARCHITECTURE.md) for code-level rules.
 
 ---
 
 ## Current Status
 
-| Phase | Deliverable | Status |
-|-------|-------------|--------|
-| W1 | Foundation (architecture, models, hub, realm map, reusable engine) | ✅ shipped |
-| W2 | Shadow Realm L1 "First Light" | ✅ shipped |
-| W2 | Shadow Realm L2 "Things That Block" | 🟡 next |
-| W3 | Shadow Realm L3–5 | ⬜ planned |
-| W4 | Shadow Realm Boss + Test system polish | ⬜ planned |
-| W5–7 | Volt City L1–Boss + meta-systems | ⬜ planned |
-| W8 | Real art (Rive/Lottie), sound, polish, TestFlight | ⬜ planned |
+| Phase | Goal | Status |
+|---|---|---|
+| **0** | V1 → V2 migration (delete dead code, rewrite docs) | 🟡 in progress |
+| **1** | Foundation — Core types + M1 in greybox | ⬜ planned |
+| **2** | Vertical Slice — M1 + M2 + transition with real art | ⬜ planned |
+| **3** | Core Content — M3 + M4 + Umbra silent presence | ⬜ planned |
+| **4** | New Mechanics — M5 (pinhole) + M6 (mirrors) | ⬜ planned |
+| **5** | Capstone — M7 + narrative resolution | ⬜ planned |
+| **6** | Polish & Testing — kid playtest, TestFlight | ⬜ planned |
 
-Detailed phase plan: [`docs/IMPLEMENTATION_PHASES.md`](docs/IMPLEMENTATION_PHASES.md).
-Out-of-scope ideas for later: [`docs/BACKLOG.md`](docs/BACKLOG.md).
+Phases are gated by milestones, not dates. Full criteria in [`PIPELINE.md`](PIPELINE.md) §8.
+
+---
+
+## App Flow
+
+```
+1. App launch → Intro cinematic (Spark introduces himself, the broken realms)
+2. Tap "Begin" → Main Home Page (profile, XP, streak, 5-world map)
+3. Tap a world → Spark "travels" to that world → World Page (lists modules)
+4. Tap a module → Module gameplay
+     ├── Opening dialogue beat
+     ├── Discovery beat (first interaction)
+     ├── Insight beat (puzzle solved)
+     └── Spark Connection beat ← the real-world bridge
+5. Transition scene → next module unlocks
+```
 
 ---
 
 ## Getting Started
 
-1. **Clone** the repo and `cd` into it.
-2. **Pull `main`** before starting any work: `git pull origin main`
-3. **Open** `Physica/Physica.xcodeproj` in Xcode 16+.
-4. **Select** an iOS 26+ simulator (iPhone 17 Pro works).
-5. **Build & run** with `⌘R`.
+1. Clone the repo, `cd` into it.
+2. Pull `main` before starting work: `git pull origin main`
+3. Open `Physica/Physica.xcodeproj` in Xcode 16+.
+4. Select an iOS 18+ simulator (iPhone 15 Pro recommended — design target).
+5. Build & run with `⌘R`.
 
 The Xcode project uses a **filesystem-synchronized group** — files added under `Physica/` automatically join the build target. **Never edit `.pbxproj` manually.**
-
-> If a file you add starts producing a "Multiple commands produce" error, it's because Xcode treats unrecognized files as bundle resources. Move docs into `docs/` (outside the source tree) or add a unique extension.
 
 ---
 
@@ -75,97 +101,71 @@ The Xcode project uses a **filesystem-synchronized group** — files added under
 ```
 Physica/                        ← repo root
 ├── README.md                   ← this file
-├── CLAUDE.md                   ← creative + product foundation (locked decisions)
-├── ARCHITECTURE.md             ← architectural rules (read before contributing)
-├── CONTRIBUTING.md             ← git workflow, push/pull, PR rules
+├── PIPELINE.md                 ← V2 source of truth (read first)
+├── ARCHITECTURE.md             ← code-level rules
+├── CONTRIBUTING.md             ← git workflow
 ├── .gitignore
-├── docs/                       ← long-form docs and references
-│   ├── IMPLEMENTATION_PHASES.md
+├── docs/                       ← supporting docs
 │   ├── DESIGN_SYSTEM.md
-│   ├── BACKLOG.md
-│   └── SHADOW_REALM_01.md      ← reference level spec
+│   └── BACKLOG.md              ← out-of-scope ideas
 └── Physica/                    ← Xcode project folder
-    ├── Physica.xcodeproj       ← Xcode project (do not edit .pbxproj manually)
-    └── Physica/                ← app source (filesystem-synchronized)
-        ├── App/                    ← entry, root view, router
-        ├── Core/
-        │   ├── DesignSystem/       ← Theme, Typography, Spacing
-        │   ├── Audio/              ← AudioManager (stubs until W8)
-        │   ├── Persistence/        ← ModelContainer, ProgressStore
-        │   ├── Hints/              ← HintEngine
-        │   └── Components/         ← SparkView, LightConeView, LevelCompleteView, PostLevelTestView
-        ├── Models/                 ← @Model: Realm, Level, Progress + SeedData
-        ├── Features/
-        │   ├── Hub/                ← Volt City home
-        │   ├── RealmMap/           ← world / level selection
-        │   ├── ShadowRealm/Level1/ ← shipped: First Light
-        │   ├── ShadowRealm/        ← placeholders for L2–Boss
-        │   ├── VoltCity/           ← placeholders for L1–Boss
-        │   └── Profile/            ← placeholder for W7
-        └── Resources/Sounds/       ← awaiting audio assets (W8)
+    ├── Physica.xcodeproj
+    └── Physica/                ← app source
+        ├── App/                ← entry, root view, router
+        ├── Core/               ← shared engine (Design, Audio, Persistence, Hints, Components)
+        ├── Models/             ← SwiftData @Model types
+        ├── Features/           ← Onboarding, Home, RealmMap, Profile
+        └── Resources/          ← assets, sounds, dialogue JSON
 ```
+
+The target end-state file structure (after V2 migration completes) is specified in [`PIPELINE.md`](PIPELINE.md) §4 — it adds `Core/Character/`, `Core/Narrative/`, `Modules/Mx_*/`, `Transitions/`, and `Shell/`.
 
 ---
 
 ## Commit Conventions
 
-Follow `type: short description` — same scheme used by the Majestica/AfterInk project.
+`<type>: <short description>` — lowercase, imperative.
 
-| Type | When to use |
-|------|-------------|
-| `init` | Project setup, initial config, scaffolding new world |
-| `feat` | New feature, level mechanic, or component |
+| Type | When |
+|---|---|
+| `feat` | New feature, module, or component |
 | `fix` | Bug fix |
-| `refactor` | Code restructuring with no behavior change |
-| `style` | UI/visual changes, formatting, no logic change |
+| `refactor` | Code restructuring, no behavior change |
+| `chore` | Build settings, dependencies, project file, cleanup |
 | `docs` | Documentation only |
-| `chore` | Dependencies, build settings, project file |
-| `test` | Adding or updating tests |
-| `art` | Asset additions or replacements (sprites, sounds, Rive files) |
+| `style` | UI / visual / formatting only |
+| `test` | Tests |
+| `art` | Asset additions or replacements |
 
-**Rules:**
-- Lowercase, imperative mood: `feat: add level 2 shadow blocker` (not `added` / `adds`)
-- First line under 72 characters
-- No period at the end
-- Optional blank line + body for context (why, not what)
-
-**Examples:**
+Examples:
 ```
-init: scaffold Volt City Level 1 folder
-feat: add light reveal mask in shadow realm L1
-feat: implement post-level test reset on wrong answer
-fix: correct gesture conflict on Spark drag
-refactor: extract LightConeView from ShadowRealmLevel1View
-style: align hub button shadow with design system
-docs: add backlog entry for Magnetic Peaks
-chore: bump iOS deployment target to 26.4
-art: add Spark idle Rive file
+feat: implement M1 Sleeping Beacon opening beat
+fix: dialogue overlay covers puzzle on iPhone 13 mini
+docs: clarify Umbra glimpse cadence in PIPELINE.md
+chore: remove V1 dead code ahead of V2 migration
 ```
 
-For the full git workflow (branching, push/pull, PRs, conflict resolution) see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+Full git workflow in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ---
 
 ## Team
 
-7 members, 8-week timeline. Suggested roles:
+7 members, ~8-week timeline. Suggested roles (see [`PIPELINE.md`](PIPELINE.md) §8 for phase ownership):
 
 | Role | Count | Responsibility |
-|------|-------|----------------|
-| Designer | 2 | Level design specs (always 1 week ahead of devs) |
-| Dev — Shadow Realm | 2 | Implements shadow realm levels |
-| Dev — Volt City | 1 | Implements volt city levels |
-| Dev — Meta-systems | 1 | XP, badges, streaks, profile, navigation |
-| Art + sound + polish | 1 | Spark sprites, scene art, Rive/Lottie animations, sound design |
-
-**Critical path:** designers stay 1 week ahead of devs on level specs. Without specs, devs have nothing to build.
+|---|---|---|
+| Designer | 2 | Module narrative + level design (1 phase ahead of devs) |
+| Dev — Core systems | 1 | Light/Character/Narrative/Dialogue shared libraries |
+| Dev — Modules | 3 | M1–M7 implementation, split across phases |
+| Art + sound + polish | 1 | Spark sprites, environment art, audio integration |
 
 ---
 
 ## Curriculum Source
 
-Indian English-medium school **Class 6 Physics** textbook (NCERT Class 6 Science aligned).
+NCERT-aligned **Class 6 Physics**, specifically **Chapter 5: Light (pp. 72–85)**. Every module maps to a concept on those pages; assessment events log evidence of mastery for the end-of-world Spark Field Report.
 
 ---
 
-*Last updated: May 8, 2026*
+*Last updated: 2026-05-12 — V2 migration in progress*
