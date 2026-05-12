@@ -47,6 +47,6 @@ struct RootView: View {
             .multilineTextAlignment(.center)
             .padding(Spacing.lg)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.shadowDeep.ignoresSafeArea())
+            .background(Color.realmDark.ignoresSafeArea())
     }
 }

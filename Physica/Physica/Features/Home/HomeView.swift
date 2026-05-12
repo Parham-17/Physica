@@ -46,7 +46,7 @@ struct HomeView: View {
                     Text("Physica")
                         .font(.gameTitle)
                         .foregroundStyle(.white)
-                    Text("Volt City — Home")
+                    Text("Spark's Workshop")
                         .font(.bodyGame)
                         .foregroundStyle(.white.opacity(0.55))
                 }
@@ -111,9 +111,9 @@ struct HomeView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, Spacing.md)
-            .background(Color.voltBlue, in: Capsule())
+            .background(Color.electricBlue, in: Capsule())
             .foregroundStyle(.white)
-            .shadow(color: .voltBlue.opacity(0.45), radius: 16)
+            .shadow(color: .electricBlue.opacity(0.45), radius: 16)
         }
         .buttonStyle(.plain)
     }

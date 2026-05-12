@@ -17,8 +17,8 @@ struct SparkView: View {
 
         var glowColor: Color {
             switch self {
-            case .yellow: return .torchWarm
-            case .blue: return .voltBlue
+            case .yellow: return .beaconWarm
+            case .blue: return .electricBlue
             }
         }
     }
@@ -223,5 +223,5 @@ private struct PropellerSpin: ViewModifier {
     }
     .padding(40)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(Color.shadowDeep)
+    .background(Color.realmDark)
 }

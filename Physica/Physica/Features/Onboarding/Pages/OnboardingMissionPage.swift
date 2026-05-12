@@ -72,7 +72,7 @@ struct OnboardingMissionPage: View {
                         x: proxy.size.width * sparkFraction.x,
                         y: proxy.size.height * sparkFraction.y + hover
                     )
-                    .shadow(color: .voltBlue.opacity(0.4), radius: 25)
+                    .shadow(color: .electricBlue.opacity(0.4), radius: 25)
             }
         }
         .contentShape(Rectangle())

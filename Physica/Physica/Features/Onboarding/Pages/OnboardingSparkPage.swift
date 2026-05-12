@@ -33,7 +33,7 @@ struct OnboardingSparkPage: View {
                 SparkHelloWaving(size: 200)
                     .scaleEffect(sparkScale)
                     .offset(y: hover)
-                    .shadow(color: .voltBlue.opacity(0.4), radius: 30)
+                    .shadow(color: .electricBlue.opacity(0.4), radius: 30)
 
                 if line1Visible {
                     Text("Hello there! I'm Spark.")

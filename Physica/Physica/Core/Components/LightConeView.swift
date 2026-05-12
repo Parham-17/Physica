@@ -3,7 +3,7 @@ import SwiftUI
 struct LightConeView: View {
     var position: CGPoint
     var radius: CGFloat = 200
-    var color: Color = .torchYellow
+    var color: Color = .beaconYellow
 
     var body: some View {
         RadialGradient(
@@ -21,7 +21,7 @@ struct LightConeView: View {
 
 #Preview("LightCone") {
     ZStack {
-        Color.shadowDeep
+        Color.realmDark
         LightConeView(position: CGPoint(x: 200, y: 300), radius: 180)
     }
     .ignoresSafeArea()

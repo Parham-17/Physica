@@ -7,7 +7,7 @@ struct RealmMapView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: Spacing.lg) {
-                Text("Choose a Realm")
+                Text("Choose a World")
                     .font(.gameTitle)
                     .foregroundStyle(.white)
                     .padding(.top, Spacing.xl)
@@ -18,7 +18,7 @@ struct RealmMapView: View {
             }
             .padding(Spacing.lg)
         }
-        .background(Color.shadowDeep.ignoresSafeArea())
+        .background(Color.realmDark.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -45,7 +45,7 @@ private struct RealmCard: View {
             }
 
             if !realm.isUnlocked {
-                Text("Complete the Shadow Realm to unlock.")
+                Text("Complete the previous world to unlock.")
                     .font(.hintCaption)
                     .foregroundStyle(.white.opacity(0.45))
             }
@@ -72,7 +72,7 @@ private struct RealmCard: View {
         switch realm.id {
         case "shadow-realm": return Color(red: 0.10, green: 0.10, blue: 0.18)
         case "volt-city": return Color(red: 0.14, green: 0.16, blue: 0.28)
-        default: return Color.shadowMid
+        default: return Color.realmMid
         }
     }
 }
@@ -115,7 +115,7 @@ private struct LevelTile: View {
                         ForEach(0..<level.starsEarned, id: \.self) { _ in
                             Image(systemName: "star.fill")
                                 .font(.system(size: 8))
-                                .foregroundStyle(Color.voltYellow)
+                                .foregroundStyle(Color.sparkYellow)
                         }
                     }
                 }

@@ -48,5 +48,5 @@ struct LevelBadge: View {
         LevelBadge(playerLevel: PlayerLevel(totalXP: 525))
     }
     .padding(24)
-    .background(Color.shadowDeep)
+    .background(Color.realmDark)
 }

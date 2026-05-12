@@ -15,7 +15,7 @@ struct OnboardingBrokenPage: View {
         ZStack {
             VStack(spacing: 0) {
                 LinearGradient(
-                    colors: [Color.shadowDeep, Color(red: 0.08, green: 0.12, blue: 0.28)],
+                    colors: [Color.realmDark, Color(red: 0.08, green: 0.12, blue: 0.28)],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -50,7 +50,7 @@ struct OnboardingBrokenPage: View {
                 if sparkVisible {
                     SparkAnimated(imageName: "SparkFrontWow", size: 120)
                         .offset(x: sparkPosition, y: hover)
-                        .shadow(color: .voltBlue.opacity(0.3), radius: 20)
+                        .shadow(color: .electricBlue.opacity(0.3), radius: 20)
                 }
 
                 Spacer()

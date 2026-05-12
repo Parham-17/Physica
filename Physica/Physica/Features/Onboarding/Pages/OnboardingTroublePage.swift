@@ -32,7 +32,7 @@ struct OnboardingTroublePage: View {
 
                 SparkAnimated(imageName: "SparkFrontHappy", size: 200)
                     .offset(y: hover)
-                    .shadow(color: .voltBlue.opacity(0.4), radius: 30)
+                    .shadow(color: .electricBlue.opacity(0.4), radius: 30)
 
                 VStack(spacing: Spacing.sm) {
                     if line1Visible {

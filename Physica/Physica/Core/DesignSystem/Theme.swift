@@ -1,34 +1,37 @@
 import SwiftUI
 
 extension Color {
-    // Volt City palette
-    static let voltCopper = Color(red: 0.78, green: 0.51, blue: 0.27)
-    static let voltCopperBright = Color(red: 0.92, green: 0.65, blue: 0.36)
-    static let voltBlue = Color(red: 0.32, green: 0.67, blue: 0.96)
-    static let voltYellow = Color(red: 1.0, green: 0.84, blue: 0.32)
+    // Spark palette (universal — used everywhere Spark appears)
+    static let sparkBrass = Color(red: 0.78, green: 0.51, blue: 0.27)
+    static let sparkBrassLight = Color(red: 0.92, green: 0.65, blue: 0.36)
 
-    // Shadow Realm palette
-    static let shadowDeep = Color(red: 0.04, green: 0.05, blue: 0.10)
-    static let shadowMid = Color(red: 0.10, green: 0.12, blue: 0.20)
-    static let torchYellow = Color(red: 1.0, green: 0.78, blue: 0.36)
-    static let torchWarm = Color(red: 1.0, green: 0.55, blue: 0.20)
+    // Light Realm accent palette (World 1)
+    static let realmDark = Color(red: 0.04, green: 0.05, blue: 0.10)
+    static let realmMid = Color(red: 0.10, green: 0.12, blue: 0.20)
+    static let beaconYellow = Color(red: 1.0, green: 0.78, blue: 0.36)
+    static let beaconWarm = Color(red: 1.0, green: 0.55, blue: 0.20)
+
+    // Volt City accent palette (World 2, stretch)
+    static let electricBlue = Color(red: 0.32, green: 0.67, blue: 0.96)
+    static let sparkYellow = Color(red: 1.0, green: 0.84, blue: 0.32)
 }
 
-enum RealmTheme {
-    case shadow
+enum WorldTheme {
+    case light
     case volt
+    // Worlds 3–5 TBD
 
     var background: Color {
         switch self {
-        case .shadow: return .shadowDeep
+        case .light: return .realmDark
         case .volt: return Color(red: 0.05, green: 0.08, blue: 0.16)
         }
     }
 
     var accent: Color {
         switch self {
-        case .shadow: return .torchYellow
-        case .volt: return .voltBlue
+        case .light: return .beaconYellow
+        case .volt: return .electricBlue
         }
     }
 }

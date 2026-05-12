@@ -20,13 +20,13 @@ struct XPProgressBar: View {
                 Capsule()
                     .fill(
                         LinearGradient(
-                            colors: [Color.voltBlue, Color.voltCopperBright],
+                            colors: [Color.electricBlue, Color.sparkBrassLight],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
                     .frame(width: proxy.size.width * CGFloat(clamped(displayedProgress)))
-                    .shadow(color: .voltBlue.opacity(0.5), radius: 6)
+                    .shadow(color: .electricBlue.opacity(0.5), radius: 6)
             }
         }
         .frame(height: height)
@@ -61,5 +61,5 @@ struct XPProgressBar: View {
         XPProgressBar(progress: 1.0)
     }
     .padding(40)
-    .background(Color.shadowDeep)
+    .background(Color.realmDark)
 }

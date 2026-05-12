@@ -56,7 +56,7 @@ struct GlitchOverlayView: View {
             width: Double.random(in: 2...20),
             height: Double.random(in: 1...3),
             opacity: Double.random(in: 0.15...0.5),
-            color: [Color.voltBlue, Color.torchYellow, Color.white].randomElement()!
+            color: [Color.electricBlue, Color.beaconYellow, Color.white].randomElement()!
         )
     }
 }

@@ -19,7 +19,7 @@ struct StreakIndicator: View {
                 Capsule()
                     .fill(Color.white.opacity(0.08))
                     .overlay(
-                        Capsule().stroke(Color.voltYellow.opacity(0.3), lineWidth: 1)
+                        Capsule().stroke(Color.sparkYellow.opacity(0.3), lineWidth: 1)
                     )
             )
         }
@@ -34,5 +34,5 @@ struct StreakIndicator: View {
         StreakIndicator(days: 42)
     }
     .padding(24)
-    .background(Color.shadowDeep)
+    .background(Color.realmDark)
 }

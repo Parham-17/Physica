@@ -23,7 +23,7 @@ struct LevelCompleteView: View {
                 ForEach(0..<3, id: \.self) { i in
                     Image(systemName: i < animatedStars ? "star.fill" : "star")
                         .font(.system(size: 52))
-                        .foregroundStyle(i < animatedStars ? Color.voltYellow : Color.white.opacity(0.25))
+                        .foregroundStyle(i < animatedStars ? Color.sparkYellow : Color.white.opacity(0.25))
                         .scaleEffect(i < animatedStars ? 1.0 : 0.7)
                 }
             }
@@ -54,16 +54,16 @@ struct LevelCompleteView: View {
                     .font(.levelHeader)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Spacing.md)
-                    .background(Color.voltBlue, in: Capsule())
+                    .background(Color.electricBlue, in: Capsule())
                     .foregroundStyle(.white)
-                    .shadow(color: .voltBlue.opacity(0.45 * Double(heartbeat / 1.04)), radius: 12 * heartbeat)
+                    .shadow(color: .electricBlue.opacity(0.45 * Double(heartbeat / 1.04)), radius: 12 * heartbeat)
             }
             .scaleEffect(heartbeat)
             .padding(.horizontal, Spacing.lg)
             .padding(.bottom, Spacing.xl)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.shadowDeep.ignoresSafeArea())
+        .background(Color.realmDark.ignoresSafeArea())
         .task { runReveal() }
         .onAppear { startHeartbeat() }
     }

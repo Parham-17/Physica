@@ -26,14 +26,14 @@ struct VoltCitySkylineView: View {
         let isLit: Bool = !allDark && ((i % 3 == 1) || (i % 5 == 0))
         ZStack(alignment: .top) {
             RoundedRectangle(cornerRadius: 4)
-                .fill(Color.shadowMid)
+                .fill(Color.realmMid)
                 .frame(width: width, height: height)
             VStack(spacing: 6) {
                 ForEach(0..<3, id: \.self) { row in
                     HStack(spacing: 4) {
                         ForEach(0..<2, id: \.self) { col in
                             Circle()
-                                .fill(Color.voltYellow.opacity(isLit && (row + col) % 2 == 0 ? 0.85 : 0.12))
+                                .fill(Color.sparkYellow.opacity(isLit && (row + col) % 2 == 0 ? 0.85 : 0.12))
                                 .frame(width: 4, height: 4)
                         }
                     }

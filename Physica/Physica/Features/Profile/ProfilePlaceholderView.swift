@@ -14,7 +14,7 @@ struct ProfilePlaceholderView: View {
                 .foregroundStyle(.white.opacity(0.55))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.shadowDeep.ignoresSafeArea())
+        .background(Color.realmDark.ignoresSafeArea())
     }
 }
 
