@@ -12,8 +12,8 @@ struct SparkView: View {
     /// `mode` controls the **halo color** around Spark, signalling which physics domain is active.
     /// The character's own colors (white body, cyan visor) stay constant — this is a backdrop tint.
     enum Mode {
-        case yellow   // Shadow Realm — warm torch halo
-        case blue     // Volt City / Hub — electric blue halo
+        case yellow   // Light Realm — warm beacon halo
+        case blue     // Volt City / Home — electric blue halo
 
         var glowColor: Color {
             switch self {
@@ -23,17 +23,9 @@ struct SparkView: View {
         }
     }
 
-    /// Drives subtle character behavior — scale, halo intensity, wobble — to convey state.
-    enum Expression {
-        case idle      // default — gentle hover + halo pulse
-        case curious   // slightly larger + faster halo (used pre-tap on L1)
-        case focused   // slightly smaller + dimmer halo (concentrating)
-        case happy     // larger + brighter halo (discovery, win)
-        case dim       // pre-light state — desaturated, no halo (Shadow Realm dark phase)
-    }
-
     var mode: Mode = .blue
-    var expression: Expression = .idle
+    var expression: SparkExpression = .idle
+    var glow: GlowState = .stable
     var size: CGFloat = 80
 
     @State private var hover: CGFloat = 0
@@ -52,13 +44,13 @@ struct SparkView: View {
                 .frame(width: size * 1.65, height: size * 1.65)
                 .blur(radius: size * 0.22)
                 .scaleEffect(halo)
-                .opacity(expression == .dim ? 0 : 1)
+                .opacity(glow == .dim ? 0 : 1)
 
             // Spark = body + spinning propeller composite
             characterComposite
                 .frame(width: size, height: size)
-                .brightness(expression == .dim ? -0.35 : 0)
-                .saturation(expression == .dim ? 0.25 : 1.0)
+                .brightness(glow == .dim ? -0.35 : 0)
+                .saturation(glow == .dim ? 0.25 : 1.0)
                 .rotationEffect(.degrees(tilt))
                 .scaleEffect(expressionScale * bounce)
                 .animation(.spring(response: 0.35, dampingFraction: 0.55), value: expression)
@@ -70,11 +62,14 @@ struct SparkView: View {
         .onChange(of: expression) { _, _ in
             applyExpressionAnimations()
         }
+        .onChange(of: glow) { _, _ in
+            applyExpressionAnimations()
+        }
     }
 
     @ViewBuilder
     private var characterComposite: some View {
-        if reduceMotion || expression == .dim {
+        if reduceMotion || glow == .dim {
             Image(.spark)
                 .resizable()
                 .scaledToFit()
@@ -97,11 +92,12 @@ struct SparkView: View {
 
     private var propellerDegreesPerSecond: Double {
         switch expression {
-        case .idle:    return 360
-        case .curious: return 450
-        case .focused: return 300
-        case .happy:   return 600
-        case .dim:     return 0
+        case .idle:     return 360
+        case .curious:  return 450
+        case .alarmed:  return 320
+        case .hopeful:  return 540
+        case .steady:   return 380
+        case .resolved: return 480
         }
     }
 
@@ -123,22 +119,32 @@ struct SparkView: View {
     // MARK: - Visual helpers
 
     private var haloOpacity: Double {
+        switch glow {
+        case .dim:    return 0.0
+        case .warm:   return 0.30
+        case .stable: return baseHaloByExpression
+        case .bright: return min(baseHaloByExpression * 1.4, 0.65)
+        }
+    }
+
+    private var baseHaloByExpression: Double {
         switch expression {
-        case .dim:     return 0.0
-        case .focused: return 0.20
-        case .idle:    return 0.30
-        case .curious: return 0.42
-        case .happy:   return 0.55
+        case .idle:     return 0.30
+        case .curious:  return 0.42
+        case .alarmed:  return 0.22
+        case .hopeful:  return 0.50
+        case .steady:   return 0.34
+        case .resolved: return 0.55
         }
     }
 
     private var expressionScale: CGFloat {
         switch expression {
-        case .dim:     return 1.0
-        case .idle:    return 1.0
-        case .curious: return 1.05
-        case .focused: return 0.96
-        case .happy:   return 1.08
+        case .idle, .steady: return 1.0
+        case .curious:       return 1.05
+        case .alarmed:       return 0.96
+        case .hopeful:       return 1.08
+        case .resolved:      return 1.10
         }
     }
 
@@ -159,14 +165,16 @@ struct SparkView: View {
 
     private func applyExpressionAnimations() {
         guard !reduceMotion else { return }
-        // Halo pulse — speed/amplitude varies by expression
+        // Halo pulse — speed/amplitude varies by expression + glow
         let (duration, target): (Double, CGFloat) = {
+            if glow == .dim { return (3.0, 1.0) }
             switch expression {
-            case .curious: return (0.85, 1.20)
-            case .happy:   return (0.65, 1.18)
-            case .focused: return (3.0,  1.04)
-            case .dim:     return (3.0,  1.0)
-            case .idle:    return (2.4,  1.08)
+            case .curious:  return (0.85, 1.20)
+            case .hopeful:  return (0.70, 1.18)
+            case .resolved: return (0.60, 1.16)
+            case .alarmed:  return (1.4,  1.06)
+            case .steady:   return (2.0,  1.10)
+            case .idle:     return (2.4,  1.08)
             }
         }()
         withAnimation(.easeInOut(duration: duration).repeatForever(autoreverses: true)) {
@@ -196,28 +204,26 @@ private struct PropellerSpin: ViewModifier {
 
 #Preview("Spark — expressions") {
     VStack(spacing: 40) {
-        HStack(spacing: 30) {
-            ForEach([
-                ("idle",    SparkView.Expression.idle),
-                ("curious", SparkView.Expression.curious),
-                ("focused", SparkView.Expression.focused),
-                ("happy",   SparkView.Expression.happy),
-                ("dim",     SparkView.Expression.dim)
-            ], id: \.0) { label, expr in
+        HStack(spacing: 24) {
+            ForEach(SparkExpression.allCases, id: \.self) { expr in
                 VStack(spacing: 8) {
                     SparkView(mode: .blue, expression: expr, size: 70)
-                    Text(label).font(.caption).foregroundStyle(.white.opacity(0.6))
+                    Text(expr.rawValue).font(.caption).foregroundStyle(.white.opacity(0.6))
                 }
             }
         }
-        HStack(spacing: 40) {
+        HStack(spacing: 30) {
             VStack {
-                SparkView(mode: .yellow, expression: .curious, size: 110)
-                Text("yellow / curious").font(.caption).foregroundStyle(.white.opacity(0.6))
+                SparkView(mode: .yellow, expression: .curious, glow: .dim, size: 110)
+                Text("dim / curious").font(.caption).foregroundStyle(.white.opacity(0.6))
             }
             VStack {
-                SparkView(mode: .blue, expression: .happy, size: 110)
-                Text("blue / happy").font(.caption).foregroundStyle(.white.opacity(0.6))
+                SparkView(mode: .yellow, expression: .hopeful, glow: .warm, size: 110)
+                Text("warm / hopeful").font(.caption).foregroundStyle(.white.opacity(0.6))
+            }
+            VStack {
+                SparkView(mode: .yellow, expression: .resolved, glow: .bright, size: 110)
+                Text("bright / resolved").font(.caption).foregroundStyle(.white.opacity(0.6))
             }
         }
     }

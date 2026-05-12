@@ -39,7 +39,7 @@ struct DialogueOverlayView: View {
     private func portrait(for beat: DialogueBeat) -> some View {
         SparkView(
             mode: .yellow,
-            expression: sparkExpression(from: beat.expression),
+            expression: SparkExpression(rawValue: beat.expression) ?? .idle,
             size: 96
         )
         .opacity(beat.speaker == .spark ? 1.0 : 0.2)
@@ -92,15 +92,4 @@ struct DialogueOverlayView: View {
         .allowsHitTesting(false)
     }
 
-    /// Best-effort mapping of V2 expression strings to current `SparkView.Expression`.
-    /// Will be replaced when `Core/Character/SparkCharacter` adds the full V2 expression set.
-    private func sparkExpression(from string: String) -> SparkView.Expression {
-        switch string {
-        case "idle": return .idle
-        case "curious": return .curious
-        case "alarmed", "steady": return .focused
-        case "hopeful", "resolved": return .happy
-        default: return .curious
-        }
-    }
 }
