@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "world_drift_plains.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

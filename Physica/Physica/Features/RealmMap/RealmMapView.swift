@@ -28,7 +28,9 @@ private struct RealmCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack {
+            HStack(spacing: Spacing.md) {
+                worldIcon
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(realm.displayName)
                         .font(.levelHeader)
@@ -73,6 +75,25 @@ private struct RealmCard: View {
         case "light-realm": return Color(red: 0.10, green: 0.10, blue: 0.18)
         case "volt-city": return Color(red: 0.14, green: 0.16, blue: 0.28)
         default: return Color.realmMid
+        }
+    }
+
+    @ViewBuilder
+    private var worldIcon: some View {
+        if let asset = realm.iconAssetName {
+            Image(asset)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 64, height: 64)
+                .clipShape(Circle())
+                .overlay(
+                    Circle().stroke(Color.white.opacity(0.12), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.5), radius: 8, y: 3)
+        } else {
+            Circle()
+                .fill(Color.white.opacity(0.08))
+                .frame(width: 64, height: 64)
         }
     }
 }
