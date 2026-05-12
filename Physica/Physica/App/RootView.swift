@@ -33,17 +33,20 @@ struct RootView: View {
         switch route {
         case .realmMap:
             RealmMapView()
-        case .shadowLevel(let n):
-            switch n {
-            case 1:
-                ShadowRealmLevel1View()
-            default:
-                ShadowRealmPlaceholderView(levelNumber: n)
-            }
-        case .voltLevel(let n):
-            VoltCityPlaceholderView(levelNumber: n)
+        case .shadowLevel, .voltLevel:
+            modulePlaceholder
         case .profile:
             ProfilePlaceholderView()
         }
+    }
+
+    private var modulePlaceholder: some View {
+        Text("Module under redesign — see PHYSICA_LIGHT_PIPELINE_V2.md")
+            .font(.bodyGame)
+            .foregroundStyle(.white.opacity(0.7))
+            .multilineTextAlignment(.center)
+            .padding(Spacing.lg)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.shadowDeep.ignoresSafeArea())
     }
 }
