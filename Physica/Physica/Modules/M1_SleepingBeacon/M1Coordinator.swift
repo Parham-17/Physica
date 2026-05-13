@@ -13,8 +13,9 @@ final class M1Coordinator {
     enum Phase: Hashable {
         case opening         // scene loaded, opening beat playing
         case awake           // dialogue dismissed, lantern interactable
-        case solved          // all 4 targets hit, beacon restored
-        case quiz            // post-connection quiz showing
+        case solved          // all 4 targets hit, gate opened
+        case walking         // connection dismissed, Spark walks toward the gate
+        case quiz            // Spark arrived at gate, quiz showing
         case celebrating     // quiz answered correctly, celebration showing
         case complete        // celebration dismissed, ready to leave
     }
@@ -60,6 +61,26 @@ final class M1Coordinator {
         sparkAwakened && discoveredReceiverIDs.count == receivers.count
     }
 
+    // MARK: - Walking phase
+
+    /// Spark's current position during the walking phase. Initialized from
+    /// `sparkPosition` when the phase enters `.walking`.
+    private(set) var sparkWalkPosition: CGPoint = .zero
+
+    /// Current joystick input — unit vector range [-1, 1] in each axis.
+    var joystickInput: CGVector = .zero
+
+    /// Normalized units per second Spark moves at full joystick deflection.
+    private let walkSpeed: CGFloat = 0.45
+
+    /// Spark has "reached" the gate when within this normalized distance.
+    private let arrivalRadius: CGFloat = 0.07
+
+    /// Target the player is walking toward — center of the gate.
+    var gateCenter: CGPoint {
+        CGPoint(x: beaconColumnRect.midX, y: beaconColumnRect.midY)
+    }
+
     // MARK: - Lifecycle
 
     func didLoad() {
@@ -71,9 +92,34 @@ final class M1Coordinator {
         if phase == .opening { phase = .awake }
     }
 
-    /// Connection beat just dismissed — show the quiz.
-    func startQuiz() {
-        if phase == .solved { phase = .quiz }
+    /// Connection beat just dismissed — Spark starts walking toward the open gate.
+    func startWalking() {
+        if phase == .solved {
+            sparkWalkPosition = sparkPosition
+            joystickInput = .zero
+            phase = .walking
+        }
+    }
+
+    /// One frame of walking — called from M1Scene's per-frame task while
+    /// `phase == .walking`. Applies joystick input, clamps to play area, and
+    /// transitions to `.quiz` if Spark has reached the gate.
+    func tickWalk(dt: CGFloat) {
+        guard phase == .walking else { return }
+        let dx = joystickInput.dx * walkSpeed * dt
+        let dy = joystickInput.dy * walkSpeed * dt
+        sparkWalkPosition = CGPoint(
+            x: max(0.05, min(0.95, sparkWalkPosition.x + dx)),
+            y: max(0.05, min(0.95, sparkWalkPosition.y + dy))
+        )
+        let distance = hypot(
+            sparkWalkPosition.x - gateCenter.x,
+            sparkWalkPosition.y - gateCenter.y
+        )
+        if distance <= arrivalRadius {
+            joystickInput = .zero
+            phase = .quiz
+        }
     }
 
     /// Player answered the quiz correctly after `attempts` tries.

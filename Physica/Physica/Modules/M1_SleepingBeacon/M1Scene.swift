@@ -23,10 +23,24 @@ struct M1Scene: View {
 
                     beaconColumn(in: proxy.size)
                     receiverViews(in: proxy.size)
-                    sparkView(in: proxy.size)
-                    beamPath(in: proxy.size)
-                    lanternView(in: proxy.size)
+
+                    if isPuzzlePhase {
+                        beamPath(in: proxy.size)
+                        sparkView(in: proxy.size)
+                        lanternView(in: proxy.size)
+                    } else {
+                        sparkWalkingView(in: proxy.size)
+                    }
                 }
+            }
+
+            if coordinator.phase == .walking {
+                JoystickPad { vector in
+                    coordinator.joystickInput = vector
+                }
+                .frame(width: 130, height: 130)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .padding(.bottom, 60)
             }
 
             if coordinator.phase == .quiz {
@@ -53,6 +67,28 @@ struct M1Scene: View {
         .onChange(of: coordinator.beaconRestored) { _, _ in tryFireQueuedBeats() }
         .onChange(of: dialogue.activeBeat) { oldBeat, newBeat in
             handleBeatTransition(from: oldBeat, to: newBeat)
+        }
+        .task(id: coordinator.phase) {
+            await runWalkLoopIfNeeded()
+        }
+    }
+
+    /// True for the puzzle phases — lantern/beam/front-Spark visible.
+    private var isPuzzlePhase: Bool {
+        switch coordinator.phase {
+        case .opening, .awake, .solved: return true
+        default: return false
+        }
+    }
+
+    /// Drives `coordinator.tickWalk(dt:)` at ~60fps while the walking phase is active.
+    /// Cancels automatically when `coordinator.phase` changes (SwiftUI's `.task(id:)`).
+    private func runWalkLoopIfNeeded() async {
+        guard coordinator.phase == .walking else { return }
+        let dt: CGFloat = 1.0 / 60.0
+        while !Task.isCancelled, coordinator.phase == .walking {
+            coordinator.tickWalk(dt: dt)
+            try? await Task.sleep(nanoseconds: 16_000_000)
         }
     }
 
@@ -99,9 +135,9 @@ struct M1Scene: View {
             }
         }
 
-        // Connection dismissed → show the quiz.
+        // Connection dismissed → Spark starts walking toward the open gate.
         if oldBeat?.id == "m1_connection", newBeat == nil {
-            coordinator.startQuiz()
+            coordinator.startWalking()
         }
     }
 
@@ -171,6 +207,25 @@ struct M1Scene: View {
     private var sparkGlow: GlowState {
         if !coordinator.sparkAwakened { return .dim }
         return coordinator.sparkCurrentlyLit ? .bright : .warm
+    }
+
+    /// Spark seen from behind during the walking phase. Joystick drives his
+    /// position; we just render the static back-facing image.
+    private func sparkWalkingView(in size: CGSize) -> some View {
+        ZStack {
+            Circle()
+                .fill(Color.beaconWarm.opacity(0.35))
+                .frame(width: 140, height: 140)
+                .blur(radius: 24)
+            Image("SparkBack")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 100, height: 100)
+        }
+        .position(
+            x: size.width * coordinator.sparkWalkPosition.x,
+            y: size.height * coordinator.sparkWalkPosition.y
+        )
     }
 
     private func beamPath(in size: CGSize) -> some View {
@@ -365,6 +420,65 @@ private struct LanternView: View {
             }
         }
         .animation(.easeOut(duration: 0.25), value: isOn)
+    }
+}
+
+// MARK: - Joystick pad
+
+/// Round virtual joystick. Reports its current direction (unit-clamped vector
+/// in [-1, 1] for each axis) via `onChange` whenever the user drags the thumb.
+/// Resets to `.zero` on release.
+private struct JoystickPad: View {
+    let onChange: (CGVector) -> Void
+
+    @State private var thumbOffset: CGSize = .zero
+
+    private let baseRadius: CGFloat = 60
+    private let thumbRadius: CGFloat = 26
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.realmMid.opacity(0.55))
+                .overlay(Circle().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                .frame(width: baseRadius * 2, height: baseRadius * 2)
+
+            Circle()
+                .fill(Color.sparkBrass)
+                .overlay(Circle().stroke(Color.sparkBrassLight, lineWidth: 2))
+                .shadow(color: Color.beaconWarm.opacity(0.5), radius: 12)
+                .frame(width: thumbRadius * 2, height: thumbRadius * 2)
+                .offset(thumbOffset)
+        }
+        .contentShape(Circle())
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    let raw = value.translation
+                    let maxOffset = baseRadius - thumbRadius
+                    let mag = hypot(raw.width, raw.height)
+                    if mag > maxOffset, mag > 0 {
+                        let scale = maxOffset / mag
+                        thumbOffset = CGSize(
+                            width: raw.width * scale,
+                            height: raw.height * scale
+                        )
+                    } else {
+                        thumbOffset = raw
+                    }
+                    onChange(CGVector(
+                        dx: thumbOffset.width / maxOffset,
+                        dy: thumbOffset.height / maxOffset
+                    ))
+                }
+                .onEnded { _ in
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+                        thumbOffset = .zero
+                    }
+                    onChange(.zero)
+                }
+        )
+        .accessibilityLabel("Movement joystick")
     }
 }
 
