@@ -9,7 +9,10 @@ struct WorldView: View {
     @Query(sort: \Realm.order) private var realms: [Realm]
     @Environment(AppRouter.self) private var router
     @Environment(AudioManager.self) private var audio
+    @Environment(NarrativeFlags.self) private var flags
     @Environment(\.modelContext) private var modelContext
+
+    @State private var moduleToRetry: Level?
 
     private var realm: Realm? {
         realms.first(where: { $0.id == worldID })
@@ -32,6 +35,19 @@ struct WorldView: View {
         }
         .background(Color.realmDark.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
+        .alert(
+            "Replay this module?",
+            isPresented: Binding(
+                get: { moduleToRetry != nil },
+                set: { if !$0 { moduleToRetry = nil } }
+            ),
+            presenting: moduleToRetry
+        ) { module in
+            Button("Cancel", role: .cancel) { moduleToRetry = nil }
+            Button("Replay") { performRetry(module) }
+        } message: { _ in
+            Text("You'll start from the beginning. Your best stars are kept, and you won't earn XP again.")
+        }
     }
 
     // MARK: - Header
@@ -72,28 +88,49 @@ struct WorldView: View {
 
     private func moduleGrid(_ realm: Realm) -> some View {
         let modules = realm.levels.sorted { $0.number < $1.number }
+        let store = ProgressStore(context: modelContext)
+        let nextID: String? = modules.first {
+            store.isLevelUnlocked($0) && !$0.isCompleted
+        }?.id
+
         return LazyVGrid(
             columns: Array(repeating: GridItem(.flexible(), spacing: Spacing.sm), count: 3),
             spacing: Spacing.sm
         ) {
             ForEach(modules) { module in
-                ModuleTile(module: module, isUnlocked: isModuleUnlocked(module))
-                    .onTapGesture { handleTap(on: module) }
+                ModuleTile(
+                    module: module,
+                    isUnlocked: store.isLevelUnlocked(module),
+                    isNext: module.id == nextID
+                )
+                .onTapGesture { handleTap(on: module) }
             }
         }
     }
 
+    // MARK: - Tap handling
+
     private func handleTap(on module: Level) {
-        guard isModuleUnlocked(module) else {
+        let store = ProgressStore(context: modelContext)
+        guard store.isLevelUnlocked(module) else {
             audio.play(.lockedAttempt)
             return
         }
         audio.play(.tap)
-        router.push(.module(module.id))
+
+        if module.isCompleted {
+            // Ask before re-running a finished module.
+            moduleToRetry = module
+        } else {
+            router.push(.module(module.id))
+        }
     }
 
-    private func isModuleUnlocked(_ module: Level) -> Bool {
-        ProgressStore(context: modelContext).isLevelUnlocked(module)
+    private func performRetry(_ module: Level) {
+        // Clear this module's narrative beats so dialogue fires fresh on retry.
+        flags.clearState(forModuleID: module.id)
+        moduleToRetry = nil
+        router.push(.module(module.id))
     }
 }
 
@@ -102,6 +139,9 @@ struct WorldView: View {
 private struct ModuleTile: View {
     let module: Level
     let isUnlocked: Bool
+    let isNext: Bool
+
+    @State private var ringPulse: CGFloat = 1.0
 
     var body: some View {
         VStack(spacing: 4) {
@@ -129,10 +169,12 @@ private struct ModuleTile: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(isUnlocked ? Color.white.opacity(0.08) : Color.white.opacity(0.03))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(borderColor, lineWidth: isNext ? 2.5 : 1)
+                .shadow(color: isNext ? Color.beaconWarm.opacity(0.7) : .clear, radius: 12)
+                .scaleEffect(isNext ? ringPulse : 1.0)
         )
         .overlay(alignment: .topTrailing) {
             if !isUnlocked {
@@ -140,10 +182,26 @@ private struct ModuleTile: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.white.opacity(0.45))
                     .padding(6)
+            } else if module.isCompleted {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color.beaconYellow)
+                    .padding(4)
             }
         }
-        .opacity(isUnlocked ? 1.0 : 0.6)
+        .opacity(isUnlocked ? 1.0 : 0.55)
         .contentShape(Rectangle())
+        .onAppear {
+            guard isNext else { return }
+            withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
+                ringPulse = 1.04
+            }
+        }
+    }
+
+    private var borderColor: Color {
+        if isNext { return Color.beaconYellow }
+        return Color.white.opacity(0.08)
     }
 }
 
@@ -153,5 +211,6 @@ private struct ModuleTile: View {
     }
     .environment(AppRouter())
     .environment(AudioManager())
+    .environment(NarrativeFlags())
     .modelContainer(.previewPhysica())
 }

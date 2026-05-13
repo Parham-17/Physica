@@ -49,4 +49,20 @@ final class NarrativeFlags {
         umbraGlimpsesSeen.removeAll()
         umbraSpoken = false
     }
+
+    /// Clear all fired beats and Umbra glimpses for a single module — called
+    /// when the player retries a completed module so its dialogue beats fire
+    /// fresh.
+    ///
+    /// Beat IDs are conventionally namespaced by module slug (e.g. `m1_opening`,
+    /// `m3.mural7_silhouette`). The slug is the part after the last `.` of the
+    /// module ID: `"light-realm.m1"` → `"m1"`.
+    func clearState(forModuleID moduleID: String) {
+        let slug = moduleID.split(separator: ".").last.map(String.init) ?? moduleID
+        let prefix = slug + "_"
+        firedBeats = firedBeats.filter { !$0.hasPrefix(prefix) }
+        umbraGlimpsesSeen = umbraGlimpsesSeen.filter {
+            !$0.hasPrefix(slug + ".") && !$0.hasPrefix(prefix)
+        }
+    }
 }

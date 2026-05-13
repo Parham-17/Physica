@@ -8,13 +8,18 @@ struct ProgressStore {
         let descriptor = FetchDescriptor<Level>(predicate: #Predicate { $0.id == levelID })
         guard let level = try? context.fetch(descriptor).first else { return }
 
+        let isFirstCompletion = (level.completedAt == nil)
         level.starsEarned = max(level.starsEarned, stars)
-        if level.completedAt == nil {
+        if isFirstCompletion {
             level.completedAt = Date()
         }
 
         if let progress = try? context.fetch(FetchDescriptor<Progress>()).first {
-            progress.totalXP += xp
+            // Only award XP on first completion — replaying a module shouldn't
+            // farm XP. Stars still upgrade (max-of) regardless.
+            if isFirstCompletion {
+                progress.totalXP += xp
+            }
             progress.lastPlayedAt = Date()
         }
 
