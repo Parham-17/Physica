@@ -191,12 +191,21 @@ struct M1Scene: View {
             glow: sparkGlow,
             size: 96
         )
+        .opacity(sparkOpacity)
         .position(
             x: size.width * coordinator.sparkPosition.x,
             y: size.height * coordinator.sparkPosition.y
         )
-        .animation(.easeOut(duration: 0.45), value: coordinator.sparkAwakened)
+        .animation(.easeOut(duration: 0.55), value: coordinator.sparkAwakened)
         .animation(.easeOut(duration: 0.25), value: coordinator.sparkCurrentlyLit)
+    }
+
+    /// Pre-awakening, Spark is a faint silhouette — the player can sense
+    /// *something* is there, but not see it clearly until they bring the light
+    /// to him. After waking up, he's fully visible regardless of beam contact.
+    private var sparkOpacity: Double {
+        if coordinator.sparkAwakened { return 1.0 }
+        return coordinator.sparkCurrentlyLit ? 1.0 : 0.32
     }
 
     private var sparkExpression: SparkExpression {
@@ -283,14 +292,19 @@ struct M1Scene: View {
 
 // MARK: - Receiver crystal
 
-/// Receiver crystal. Three visual states:
-///   - **off**: cold dark circle, no glow (default, no beam, never hit)
-///   - **currentlyLit**: bright yellow with halo (beam currently passing through)
-///   - **discovered, not lit**: cold dark with a small persistent sparkle (beam
-///     has visited at least once — the player has *seen* this thing)
+/// Receiver crystal. Four visual states:
+///   - **undiscovered**: completely invisible — the player hasn't brought light
+///     here yet, so it isn't there to be seen (the gameplay-level expression of
+///     M1's lesson: "light reveals what it touches")
+///   - **currentlyLit (first time)**: fades in bright with a halo
+///   - **currentlyLit (subsequent)**: bright yellow with halo
+///   - **discovered, not lit**: cold dark crystal with a small persistent
+///     sparkle (we've seen this thing; it's part of the world now)
 private struct ReceiverView: View {
     let currentlyLit: Bool
     let discovered: Bool
+
+    private var isVisible: Bool { discovered || currentlyLit }
 
     var body: some View {
         ZStack {
@@ -320,8 +334,10 @@ private struct ReceiverView: View {
                     .shadow(color: .beaconWarm, radius: 3)
             }
         }
+        .opacity(isVisible ? 1 : 0)
+        .scaleEffect(isVisible ? 1 : 0.7)
+        .animation(.easeOut(duration: 0.4), value: discovered)
         .animation(.easeOut(duration: 0.18), value: currentlyLit)
-        .animation(.easeOut(duration: 0.25), value: discovered)
     }
 }
 
