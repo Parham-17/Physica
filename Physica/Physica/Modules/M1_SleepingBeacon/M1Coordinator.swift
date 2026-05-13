@@ -14,10 +14,14 @@ final class M1Coordinator {
         case opening         // scene loaded, opening beat playing
         case awake           // dialogue dismissed, lantern interactable
         case solved          // all 4 targets hit, beacon restored
-        case complete        // connection beat done, ready to leave
+        case quiz            // post-connection quiz showing
+        case celebrating     // quiz answered correctly, celebration showing
+        case complete        // celebration dismissed, ready to leave
     }
 
     private(set) var phase: Phase = .opening
+    private(set) var quizAttempts: Int = 0
+    private(set) var starsEarned: Int = 0
 
     // MARK: - Layout (normalized)
 
@@ -53,6 +57,19 @@ final class M1Coordinator {
 
     func dialogueDidDismissOpening() {
         if phase == .opening { phase = .awake }
+    }
+
+    /// Connection beat just dismissed — show the quiz.
+    func startQuiz() {
+        if phase == .solved { phase = .quiz }
+    }
+
+    /// Player answered the quiz correctly after `attempts` tries.
+    /// 1 attempt → 3 stars, 2 → 2 stars, 3+ → 1 star.
+    func answerQuizCorrect(attempts: Int) {
+        quizAttempts = attempts
+        starsEarned = max(1, 4 - min(attempts, 3))
+        phase = .celebrating
     }
 
     func markComplete() {

@@ -13,19 +13,39 @@ struct M1Scene: View {
     @Environment(NarrativeFlags.self) private var flags
     @Environment(AppRouter.self) private var router
     @Environment(AudioManager.self) private var audio
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                Color.realmDark.ignoresSafeArea()
+        ZStack {
+            GeometryReader { proxy in
+                ZStack {
+                    Color.realmDark.ignoresSafeArea()
 
-                beaconColumn(in: proxy.size)
-                receiverViews(in: proxy.size)
-                sparkView(in: proxy.size)
-                beamPath(in: proxy.size)
-                lanternView(in: proxy.size)
+                    beaconColumn(in: proxy.size)
+                    receiverViews(in: proxy.size)
+                    sparkView(in: proxy.size)
+                    beamPath(in: proxy.size)
+                    lanternView(in: proxy.size)
+                }
+            }
+
+            if coordinator.phase == .quiz {
+                M1QuizView(question: .m1) { attempts in
+                    coordinator.answerQuizCorrect(attempts: attempts)
+                }
+                .transition(.opacity)
+            }
+
+            if coordinator.phase == .celebrating {
+                M1CelebrationView(
+                    stars: coordinator.starsEarned,
+                    xpEarned: 50,
+                    onContinue: { finishModule() }
+                )
+                .transition(.opacity)
             }
         }
+        .animation(.easeInOut(duration: 0.3), value: coordinator.phase)
         .navigationBarBackButtonHidden(true)
         .toolbar { backButtonToolbar }
         .onAppear { setUpScene() }
@@ -79,12 +99,22 @@ struct M1Scene: View {
             }
         }
 
-        // Connection dismissed → module complete, pop back to world map.
+        // Connection dismissed → show the quiz.
         if oldBeat?.id == "m1_connection", newBeat == nil {
-            coordinator.markComplete()
-            dialogue.unloadScript()
-            router.popToRoot()
+            coordinator.startQuiz()
         }
+    }
+
+    private func finishModule() {
+        dialogue.unloadScript()
+        let store = ProgressStore(context: modelContext)
+        store.recordLevelCompletion(
+            levelID: "light-realm.m1",
+            stars: coordinator.starsEarned,
+            xp: 50
+        )
+        coordinator.markComplete()
+        router.popToRoot()
     }
 
     // MARK: - Subviews
