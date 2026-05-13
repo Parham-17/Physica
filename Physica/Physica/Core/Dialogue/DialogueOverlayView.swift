@@ -40,15 +40,13 @@ struct DialogueOverlayView: View {
     }
 
     private func portrait(for beat: DialogueBeat) -> some View {
-        let expression = SparkExpression(rawValue: beat.expression) ?? .idle
-        return ZStack {
-            Circle()
-                .fill(Color.beaconWarm.opacity(beat.speaker == .spark ? 0.45 : 0))
-                .frame(width: 140, height: 140)
-                .blur(radius: 22)
-
+        Group {
             if beat.speaker == .spark {
-                Image(portraitAssetName(for: expression))
+                // Single static composite — body + propeller in one image, propeller
+                // intentionally NOT spinning (this is a narrator portrait, not the
+                // in-scene character). Expression-specific portraits land later when
+                // the design team hands them off.
+                Image("Spark")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 130, height: 130)
@@ -98,18 +96,4 @@ struct DialogueOverlayView: View {
         .padding(.bottom, 24)
     }
 
-    /// Static portrait imageset to use for a given expression. These shipped with
-    /// the original Spark design and are distinct from the animated `SparkView`
-    /// used in puzzle gameplay — so the dialogue Spark is visually different
-    /// from the puzzle Spark.
-    private func portraitAssetName(for expression: SparkExpression) -> String {
-        switch expression {
-        case .idle:     return "SparkFrontHello"
-        case .curious:  return "SparkFrontHelloArm"
-        case .alarmed:  return "SparkFrontWow"
-        case .hopeful:  return "SparkFrontHappy"
-        case .steady:   return "SparkFrontHello"
-        case .resolved: return "SparkFrontHappy"
-        }
-    }
 }
