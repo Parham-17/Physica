@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 enum NavRoute: Hashable {
-    case realmMap
+    case world(String)    // world ID, e.g. "light-realm"
     case module(String)   // module ID, e.g. "light-realm.m1"
     case profile
 }

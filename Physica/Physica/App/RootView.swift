@@ -34,8 +34,8 @@ struct RootView: View {
     @ViewBuilder
     private func destination(for route: NavRoute) -> some View {
         switch route {
-        case .realmMap:
-            RealmMapView()
+        case .world(let worldID):
+            WorldView(worldID: worldID)
         case .module(let moduleID):
             moduleScene(for: moduleID)
         case .profile:
