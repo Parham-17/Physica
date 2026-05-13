@@ -49,7 +49,7 @@ struct M1Scene: View {
         .navigationBarBackButtonHidden(true)
         .toolbar { backButtonToolbar }
         .onAppear { setUpScene() }
-        .onChange(of: coordinator.sparkActivated) { _, _ in tryFireQueuedBeats() }
+        .onChange(of: coordinator.sparkAwakened) { _, _ in tryFireQueuedBeats() }
         .onChange(of: coordinator.beaconRestored) { _, _ in tryFireQueuedBeats() }
         .onChange(of: dialogue.activeBeat) { oldBeat, newBeat in
             handleBeatTransition(from: oldBeat, to: newBeat)
@@ -73,7 +73,7 @@ struct M1Scene: View {
     /// re-checks every trigger — beats that couldn't fire earlier (because another
     /// beat was active) get a second chance once the overlay is free.
     private func tryFireQueuedBeats() {
-        if coordinator.sparkActivated, !flags.hasBeatFired("m1_discovery") {
+        if coordinator.sparkAwakened, !flags.hasBeatFired("m1_discovery") {
             dialogue.fire(trigger: "onSparkActivated")
         }
         if coordinator.beaconRestored, !flags.hasBeatFired("m1_insight") {
@@ -121,45 +121,56 @@ struct M1Scene: View {
 
     private func beaconColumn(in size: CGSize) -> some View {
         let r = coordinator.beaconColumnRect
-        return RoundedRectangle(cornerRadius: 12)
-            .fill(coordinator.beaconRestored ? Color.beaconYellow.opacity(0.85) : Color.realmMid)
-            .frame(
-                width: size.width * r.width,
-                height: size.height * r.height
-            )
-            .shadow(
-                color: coordinator.beaconRestored ? .beaconWarm.opacity(0.7) : .clear,
-                radius: 30
-            )
-            .position(
-                x: size.width * (r.midX),
-                y: size.height * (r.midY)
-            )
-            .animation(.easeOut(duration: 0.8), value: coordinator.beaconRestored)
+        return GateView(
+            discoveredCount: coordinator.discoveredReceiverIDs.count,
+            isOpen: coordinator.beaconRestored
+        )
+        .frame(
+            width: size.width * r.width,
+            height: size.height * r.height
+        )
+        .position(
+            x: size.width * r.midX,
+            y: size.height * r.midY
+        )
     }
 
     private func receiverViews(in size: CGSize) -> some View {
         ForEach(coordinator.receivers) { receiver in
-            ReceiverView(activated: receiver.isActivated)
-                .position(
-                    x: size.width * receiver.position.x,
-                    y: size.height * receiver.position.y
-                )
+            ReceiverView(
+                currentlyLit: coordinator.currentlyLitReceiverIDs.contains(receiver.id),
+                discovered: coordinator.discoveredReceiverIDs.contains(receiver.id)
+            )
+            .position(
+                x: size.width * receiver.position.x,
+                y: size.height * receiver.position.y
+            )
         }
     }
 
     private func sparkView(in size: CGSize) -> some View {
         SparkView(
             mode: .yellow,
-            expression: coordinator.sparkActivated ? .hopeful : .curious,
-            glow: coordinator.sparkActivated ? .warm : .dim,
+            expression: sparkExpression,
+            glow: sparkGlow,
             size: 96
         )
         .position(
             x: size.width * coordinator.sparkPosition.x,
             y: size.height * coordinator.sparkPosition.y
         )
-        .animation(.easeOut(duration: 0.6), value: coordinator.sparkActivated)
+        .animation(.easeOut(duration: 0.45), value: coordinator.sparkAwakened)
+        .animation(.easeOut(duration: 0.25), value: coordinator.sparkCurrentlyLit)
+    }
+
+    private var sparkExpression: SparkExpression {
+        if !coordinator.sparkAwakened { return .curious }
+        return coordinator.sparkCurrentlyLit ? .hopeful : .steady
+    }
+
+    private var sparkGlow: GlowState {
+        if !coordinator.sparkAwakened { return .dim }
+        return coordinator.sparkCurrentlyLit ? .bright : .warm
     }
 
     private func beamPath(in size: CGSize) -> some View {
@@ -215,28 +226,114 @@ struct M1Scene: View {
     }
 }
 
-// MARK: - Receiver placeholder
+// MARK: - Receiver crystal
 
+/// Receiver crystal. Three visual states:
+///   - **off**: cold dark circle, no glow (default, no beam, never hit)
+///   - **currentlyLit**: bright yellow with halo (beam currently passing through)
+///   - **discovered, not lit**: cold dark with a small persistent sparkle (beam
+///     has visited at least once — the player has *seen* this thing)
 private struct ReceiverView: View {
-    let activated: Bool
+    let currentlyLit: Bool
+    let discovered: Bool
 
     var body: some View {
         ZStack {
             Circle()
-                .fill(activated ? Color.beaconYellow : Color.realmMid)
+                .fill(currentlyLit ? Color.beaconYellow : Color.realmMid)
                 .frame(width: 44, height: 44)
-                .shadow(color: activated ? Color.beaconWarm.opacity(0.75) : .clear, radius: 18)
+                .shadow(color: currentlyLit ? Color.beaconWarm.opacity(0.75) : .clear, radius: 18)
                 .overlay(
                     Circle()
-                        .stroke(activated ? Color.beaconYellow : Color.white.opacity(0.18), lineWidth: 2)
+                        .stroke(
+                            currentlyLit ? Color.beaconYellow : Color.white.opacity(0.18),
+                            lineWidth: 2
+                        )
                 )
-            if activated {
+
+            if currentlyLit {
                 Image(systemName: "sparkle")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(.white)
+            } else if discovered {
+                // Tiny persistent marker — "we know this is here" without
+                // pretending the crystal is still lit.
+                Circle()
+                    .fill(Color.beaconYellow.opacity(0.85))
+                    .frame(width: 6, height: 6)
+                    .offset(x: 14, y: -14)
+                    .shadow(color: .beaconWarm, radius: 3)
             }
         }
-        .animation(.spring(response: 0.45, dampingFraction: 0.7), value: activated)
+        .animation(.easeOut(duration: 0.18), value: currentlyLit)
+        .animation(.easeOut(duration: 0.25), value: discovered)
+    }
+}
+
+// MARK: - Gate
+
+/// The Dawn Court gate. Starts closed; three small lights along the top track
+/// how many receivers have been discovered. Once the puzzle solves (all 3
+/// receivers discovered + Spark awakened), the two door halves slide apart
+/// and a warm portal of light pours out.
+private struct GateView: View {
+    let discoveredCount: Int    // 0–3
+    let isOpen: Bool
+
+    var body: some View {
+        GeometryReader { proxy in
+            let w = proxy.size.width
+            let h = proxy.size.height
+
+            ZStack {
+                // Outer frame
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.realmMid)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.white.opacity(0.12), lineWidth: 2)
+                    )
+
+                // Inner glow — only visible when the gate is open
+                if isOpen {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.beaconYellow)
+                        .padding(10)
+                        .shadow(color: Color.beaconWarm.opacity(0.9), radius: 36)
+                }
+
+                // Two door halves — slide apart when opening
+                HStack(spacing: 0) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.realmDark)
+                        .frame(width: w / 2 - 6)
+                        .offset(x: isOpen ? -w * 0.55 : 0)
+                    Spacer(minLength: 0)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.realmDark)
+                        .frame(width: w / 2 - 6)
+                        .offset(x: isOpen ? w * 0.55 : 0)
+                }
+                .padding(6)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                // Indicator lights along the top — one per receiver
+                HStack(spacing: 8) {
+                    ForEach(0..<3, id: \.self) { i in
+                        Circle()
+                            .fill(i < discoveredCount ? Color.beaconYellow : Color.white.opacity(0.18))
+                            .frame(width: 7, height: 7)
+                            .shadow(
+                                color: i < discoveredCount ? Color.beaconWarm : .clear,
+                                radius: 5
+                            )
+                    }
+                }
+                .offset(y: -h / 2 + 8)
+            }
+        }
+        .animation(.easeOut(duration: 0.9), value: isOpen)
+        .animation(.spring(response: 0.5, dampingFraction: 0.7), value: discoveredCount)
     }
 }
 

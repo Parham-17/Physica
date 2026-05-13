@@ -39,13 +39,25 @@ final class M1Coordinator {
     // MARK: - Mutable game state
 
     var lanternX: CGFloat = 0.05
-    private(set) var sparkActivated: Bool = false
-    private(set) var activatedReceiverIDs: Set<String> = []
-    private(set) var currentBeam: LightBeam = .empty
     private(set) var lanternIsOn: Bool = false
+    private(set) var currentBeam: LightBeam = .empty
+
+    /// Persistent — set true the first time the beam touches Spark, never reset.
+    /// Story: his internal LEDs powered on; he's now awake.
+    private(set) var sparkAwakened: Bool = false
+
+    /// Transient — true only while the beam is currently touching Spark.
+    private(set) var sparkCurrentlyLit: Bool = false
+
+    /// Persistent — IDs of receivers the player has *ever* hit. Used for the
+    /// gate's progress lights and the win condition.
+    private(set) var discoveredReceiverIDs: Set<String> = []
+
+    /// Transient — IDs of receivers the beam is currently touching.
+    private(set) var currentlyLitReceiverIDs: Set<String> = []
 
     var beaconRestored: Bool {
-        sparkActivated && activatedReceiverIDs.count == receivers.count
+        sparkAwakened && discoveredReceiverIDs.count == receivers.count
     }
 
     // MARK: - Lifecycle
@@ -99,20 +111,16 @@ final class M1Coordinator {
         )
         currentBeam = LightSimulation.cast(from: emitter)
 
-        // Spark activation — beam passes within sparkRadius of sparkPosition.
-        if !sparkActivated, beamHitsSpark() {
-            sparkActivated = true
+        // Spark — transient lit state every frame, persistent awakened state once true.
+        sparkCurrentlyLit = beamHitsSpark()
+        if sparkCurrentlyLit, !sparkAwakened {
+            sparkAwakened = true
         }
 
-        // Receiver activation — refresh from the simulation, but never deactivate
-        // a receiver that has already been lit (one-shot).
-        let hits = LightSimulation.receivers(activatedBy: currentBeam, receivers: receivers)
-        activatedReceiverIDs.formUnion(hits)
-        for index in receivers.indices {
-            if activatedReceiverIDs.contains(receivers[index].id) {
-                receivers[index].isActivated = true
-            }
-        }
+        // Receivers — same pattern: transient `currentlyLit` every frame,
+        // persistent `discovered` set unions in any new hits.
+        currentlyLitReceiverIDs = LightSimulation.receivers(activatedBy: currentBeam, receivers: receivers)
+        discoveredReceiverIDs.formUnion(currentlyLitReceiverIDs)
 
         if beaconRestored, phase == .awake {
             phase = .solved
