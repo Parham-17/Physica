@@ -93,10 +93,18 @@ final class M1Coordinator {
     }
 
     /// Connection beat just dismissed — Spark starts walking toward the open gate.
+    /// Clears all transient beam state so the puzzle scene reads as "done":
+    /// the lantern is no longer in the player's hand, and any receiver that
+    /// happened to be lit at the moment of solving fades back to its discovered
+    /// (small-sparkle-only) state.
     func startWalking() {
         if phase == .solved {
             sparkWalkPosition = sparkPosition
             joystickInput = .zero
+            lanternIsOn = false
+            currentBeam = .empty
+            currentlyLitReceiverIDs = []
+            sparkCurrentlyLit = false
             phase = .walking
         }
     }
