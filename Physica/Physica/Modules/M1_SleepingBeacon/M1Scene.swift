@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// M1 Sleeping Beacon — greybox SwiftUI scene. Portrait layout: beacon column
 /// at the top, 3 receiver crystals + Spark in the middle band, lantern slider
