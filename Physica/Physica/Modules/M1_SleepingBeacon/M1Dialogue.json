@@ -7,8 +7,8 @@
       "speaker": "spark",
       "expression": "curious",
       "lines": [
-        "Where am I?",
-        "It is so dark."
+        "Where am I…",
+        "It's too dark to see anything."
       ],
       "trigger": "onSceneLoaded",
       "showOnce": true
@@ -20,7 +20,7 @@
       "expression": "hopeful",
       "lines": [
         "You aimed the light at me.",
-        "I... I can see again."
+        "I can only see what the beam touches."
       ],
       "trigger": "onSparkActivated",
       "showOnce": true
@@ -31,7 +31,8 @@
       "speaker": "spark",
       "expression": "steady",
       "lines": [
-        "When light touches something here, it remembers how to wake up."
+        "Three crystals — they were here the whole time.",
+        "We just couldn't see them in the dark."
       ],
       "trigger": "onBeaconRestored",
       "showOnce": true
@@ -42,9 +43,8 @@
       "speaker": "spark",
       "expression": "steady",
       "lines": [
-        "At night, when the streetlight on your block turns on,",
-        "the whole street remembers it exists.",
-        "Nothing changed except light."
+        "Same as a streetlight at night.",
+        "The street is always there — the light just lets you see it."
       ],
       "trigger": "onContinueAfterInsight",
       "showOnce": true
