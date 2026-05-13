@@ -1,13 +1,15 @@
 import SwiftUI
+import UIKit
 
-/// Types a string out one character at a time at `charsPerSecond`.
+/// Types a string out one character at a time at `charsPerSecond`, firing a
+/// subtle haptic at each word boundary so the dialogue feels alive in hand.
 ///
 /// Behavior:
 /// - On appear (or when `text` changes): starts at 0 revealed, ticks up.
 /// - When `completeImmediately` toggles to true: jumps to fully revealed.
 /// - When the full text is shown, calls `onComplete()` once.
 ///
-/// Respects `accessibilityReduceMotion` by skipping straight to fully revealed.
+/// Respects `accessibilityReduceMotion` by skipping the typewriter AND haptics.
 struct TypewriterText: View {
     let text: String
     var charsPerSecond: Double = 35
@@ -39,6 +41,10 @@ struct TypewriterText: View {
         String(text.prefix(revealedCount))
     }
 
+    private var wordStartIndices: Set<Int> {
+        Self.wordStartIndices(in: text)
+    }
+
     private func restart() {
         revealedCount = reduceMotion ? text.count : 0
         hasNotifiedComplete = false
@@ -53,6 +59,7 @@ struct TypewriterText: View {
     private func tick() async {
         guard !reduceMotion, charsPerSecond > 0 else { return }
         let interval = UInt64(1_000_000_000 / charsPerSecond)
+        let starts = wordStartIndices
         while revealedCount < text.count {
             try? await Task.sleep(nanoseconds: interval)
             if completeImmediately {
@@ -61,6 +68,9 @@ struct TypewriterText: View {
             }
             if revealedCount < text.count {
                 revealedCount += 1
+                if starts.contains(revealedCount - 1) {
+                    fireWordHaptic()
+                }
             }
         }
         notifyComplete()
@@ -70,6 +80,27 @@ struct TypewriterText: View {
         guard !hasNotifiedComplete else { return }
         hasNotifiedComplete = true
         onComplete()
+    }
+
+    private func fireWordHaptic() {
+        let generator = UIImpactFeedbackGenerator(style: .soft)
+        generator.impactOccurred(intensity: 0.35)
+    }
+
+    /// Indices in `text` that begin a new word (letter/digit preceded by a non-word char or string start).
+    private static func wordStartIndices(in text: String) -> Set<Int> {
+        var indices: Set<Int> = []
+        var inWord = false
+        for (i, char) in text.enumerated() {
+            let isWordChar = char.isLetter || char.isNumber
+            if isWordChar && !inWord {
+                indices.insert(i)
+                inWord = true
+            } else if !isWordChar {
+                inWord = false
+            }
+        }
+        return indices
     }
 }
 
