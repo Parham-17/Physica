@@ -5,15 +5,17 @@ import CoreGraphics
 /// Game state for M1 Sleeping Beacon.
 ///
 /// All positions are **normalized 0..1** — the view multiplies by container size
-/// at render time. The puzzle is solved when Spark is awake AND all 3 receivers
-/// are lit, which restores the beacon and fires the Insight beat.
+/// at render time. Layout: lantern fixed at the bottom-center; the player aims
+/// the beam by dragging anywhere in the play area. A stone pillar blocks the
+/// center, forcing a deliberate aim (not just a sweep). Each receiver and Spark
+/// must be lit for `chargeDuration` seconds to be "discovered."
 @Observable
 final class M1Coordinator {
 
     enum Phase: Hashable {
         case opening         // scene loaded, opening beat playing
-        case awake           // dialogue dismissed, lantern interactable
-        case solved          // all 4 targets hit, gate opened
+        case awake           // dialogue dismissed, beam interactable
+        case solved          // all 4 charged, gate opened
         case walking         // connection dismissed, Spark walks toward the gate
         case quiz            // Spark arrived at gate, quiz showing
         case celebrating     // quiz answered correctly, celebration showing
@@ -26,35 +28,55 @@ final class M1Coordinator {
 
     // MARK: - Layout (normalized)
 
-    let lanternY: CGFloat = 0.65
-    let sparkPosition: CGPoint = CGPoint(x: 0.35, y: 0.50)
+    let lanternPosition: CGPoint = CGPoint(x: 0.50, y: 0.86)
+    let sparkPosition: CGPoint = CGPoint(x: 0.30, y: 0.62)
     let sparkRadius: CGFloat = 0.06
-    let beaconColumnRect = CGRect(x: 0.35, y: 0.10, width: 0.30, height: 0.14)
+    let beaconColumnRect = CGRect(x: 0.35, y: 0.08, width: 0.30, height: 0.12)
 
+    /// Three receivers placed so each requires a distinct aim direction.
+    /// R1 = far upper-left, R2 = far upper-right, R3 = just to the right of
+    /// the pillar.
     private(set) var receivers: [LightReceiver] = [
-        LightReceiver(id: "r1", position: CGPoint(x: 0.18, y: 0.30), radius: 0.05, requiredIntensity: 0.5, isActivated: false),
-        LightReceiver(id: "r2", position: CGPoint(x: 0.50, y: 0.30), radius: 0.05, requiredIntensity: 0.5, isActivated: false),
-        LightReceiver(id: "r3", position: CGPoint(x: 0.82, y: 0.30), radius: 0.05, requiredIntensity: 0.5, isActivated: false)
+        LightReceiver(id: "r1", position: CGPoint(x: 0.16, y: 0.22), radius: 0.05, requiredIntensity: 0.5, isActivated: false),
+        LightReceiver(id: "r2", position: CGPoint(x: 0.84, y: 0.22), radius: 0.05, requiredIntensity: 0.5, isActivated: false),
+        LightReceiver(id: "r3", position: CGPoint(x: 0.70, y: 0.36), radius: 0.05, requiredIntensity: 0.5, isActivated: false)
     ]
+
+    /// Stone pillar in the middle of the play area. Blocks any direct vertical
+    /// beam from the lantern — player has to aim around it.
+    private(set) var blockers: [BlockerObject] = [
+        BlockerObject(
+            id: "pillar",
+            bounds: CGRect(x: 0.43, y: 0.40, width: 0.14, height: 0.22),
+            isOpaque: true,
+            castsShadow: false
+        )
+    ]
+
+    // MARK: - Charge mechanic
+
+    /// Seconds of continuous beam exposure required to discover a target.
+    let chargeDuration: TimeInterval = 0.8
+
+    /// 0...1 charge progress per receiver ID. Once it reaches 1, the receiver
+    /// is added to `discoveredReceiverIDs` (permanent).
+    private(set) var receiverChargeProgress: [String: CGFloat] = [:]
+
+    /// 0...1 charge progress for Spark. Once it reaches 1, `sparkAwakened`
+    /// flips to true (permanent).
+    private(set) var sparkChargeProgress: CGFloat = 0
 
     // MARK: - Mutable game state
 
-    var lanternX: CGFloat = 0.05
+    /// Where the player is aiming the beam toward (normalized). The beam
+    /// direction is `(aimTarget - lanternPosition).normalized`.
+    var aimTarget: CGPoint = CGPoint(x: 0.50, y: 0.50)
     private(set) var lanternIsOn: Bool = false
     private(set) var currentBeam: LightBeam = .empty
 
-    /// Persistent — set true the first time the beam touches Spark, never reset.
-    /// Story: his internal LEDs powered on; he's now awake.
     private(set) var sparkAwakened: Bool = false
-
-    /// Transient — true only while the beam is currently touching Spark.
     private(set) var sparkCurrentlyLit: Bool = false
-
-    /// Persistent — IDs of receivers the player has *ever* hit. Used for the
-    /// gate's progress lights and the win condition.
     private(set) var discoveredReceiverIDs: Set<String> = []
-
-    /// Transient — IDs of receivers the beam is currently touching.
     private(set) var currentlyLitReceiverIDs: Set<String> = []
 
     var beaconRestored: Bool {
@@ -63,20 +85,11 @@ final class M1Coordinator {
 
     // MARK: - Walking phase
 
-    /// Spark's current position during the walking phase. Initialized from
-    /// `sparkPosition` when the phase enters `.walking`.
     private(set) var sparkWalkPosition: CGPoint = .zero
-
-    /// Current joystick input — unit vector range [-1, 1] in each axis.
     var joystickInput: CGVector = .zero
-
-    /// Normalized units per second Spark moves at full joystick deflection.
     private let walkSpeed: CGFloat = 0.45
-
-    /// Spark has "reached" the gate when within this normalized distance.
     private let arrivalRadius: CGFloat = 0.07
 
-    /// Target the player is walking toward — center of the gate.
     var gateCenter: CGPoint {
         CGPoint(x: beaconColumnRect.midX, y: beaconColumnRect.midY)
     }
@@ -84,7 +97,6 @@ final class M1Coordinator {
     // MARK: - Lifecycle
 
     func didLoad() {
-        // Beam stays off until the player first touches the lantern.
         phase = .opening
     }
 
@@ -92,11 +104,6 @@ final class M1Coordinator {
         if phase == .opening { phase = .awake }
     }
 
-    /// Connection beat just dismissed — Spark starts walking toward the open gate.
-    /// Clears all transient beam state so the puzzle scene reads as "done":
-    /// the lantern is no longer in the player's hand, and any receiver that
-    /// happened to be lit at the moment of solving fades back to its discovered
-    /// (small-sparkle-only) state.
     func startWalking() {
         if phase == .solved {
             sparkWalkPosition = sparkPosition
@@ -109,9 +116,6 @@ final class M1Coordinator {
         }
     }
 
-    /// One frame of walking — called from M1Scene's per-frame task while
-    /// `phase == .walking`. Applies joystick input, clamps to play area, and
-    /// transitions to `.quiz` if Spark has reached the gate.
     func tickWalk(dt: CGFloat) {
         guard phase == .walking else { return }
         let dx = joystickInput.dx * walkSpeed * dt
@@ -130,8 +134,6 @@ final class M1Coordinator {
         }
     }
 
-    /// Player answered the quiz correctly after `attempts` tries.
-    /// 1 attempt → 3 stars, 2 → 2 stars, 3+ → 1 star.
     func answerQuizCorrect(attempts: Int) {
         quizAttempts = attempts
         starsEarned = max(1, 4 - min(attempts, 3))
@@ -144,45 +146,98 @@ final class M1Coordinator {
 
     // MARK: - Input
 
-    /// Called from the lantern's drag gesture. `normalizedX` is the gesture
-    /// location's X divided by the container width.
-    func handleLanternDrag(to normalizedX: CGFloat) {
+    /// Called while the player is dragging anywhere in the play area. Sets the
+    /// aim target and turns the lantern on. Releasing the finger calls
+    /// `endAim()` which turns the lantern off.
+    func handleAim(to normalizedPoint: CGPoint) {
+        guard phase == .awake else { return }
+        aimTarget = CGPoint(
+            x: max(0.02, min(0.98, normalizedPoint.x)),
+            y: max(0.02, min(0.98, normalizedPoint.y))
+        )
         lanternIsOn = true
-        lanternX = max(0.05, min(0.95, normalizedX))
         recomputeBeam()
+    }
+
+    /// Called when the player lifts their finger. Beam goes off; transient
+    /// lit state clears. Charge progress that's already accumulated *stays*.
+    func endAim() {
+        lanternIsOn = false
+        currentBeam = .empty
+        currentlyLitReceiverIDs = []
+        sparkCurrentlyLit = false
     }
 
     // MARK: - Beam computation
 
     private func recomputeBeam() {
+        let dx = aimTarget.x - lanternPosition.x
+        let dy = aimTarget.y - lanternPosition.y
+        let mag = sqrt(dx * dx + dy * dy)
+        let direction: CGVector
+        if mag > 0 {
+            direction = CGVector(dx: dx / mag, dy: dy / mag)
+        } else {
+            direction = CGVector(dx: 0, dy: -1)
+        }
+
         let emitter = LightEmitter(
-            origin: CGPoint(x: lanternX, y: lanternY),
-            direction: CGVector(dx: 0, dy: -1),   // upward in normalized coords (y decreases up)
+            origin: lanternPosition,
+            direction: direction,
             intensity: 1.0,
             color: .white,
             isOn: lanternIsOn,
             sourceType: .point
         )
-        currentBeam = LightSimulation.cast(from: emitter)
+        currentBeam = LightSimulation.cast(from: emitter, blockers: blockers, maxDistance: 2.0)
 
-        // Spark — transient lit state every frame, persistent awakened state once true.
         sparkCurrentlyLit = beamHitsSpark()
+        currentlyLitReceiverIDs = LightSimulation.receivers(activatedBy: currentBeam, receivers: receivers)
+    }
+
+    // MARK: - Per-frame charge tick
+
+    /// One frame of puzzle progress. Called from M1Scene while `phase == .awake`.
+    /// Increments charge progress for whatever the beam is currently on; once a
+    /// target's progress hits 1, it's permanently discovered.
+    func tickPuzzle(dt: CGFloat) {
+        guard phase == .awake else { return }
+
+        // Spark charge
         if sparkCurrentlyLit, !sparkAwakened {
-            sparkAwakened = true
+            sparkChargeProgress = min(1, sparkChargeProgress + CGFloat(dt) / CGFloat(chargeDuration))
+            if sparkChargeProgress >= 1 {
+                sparkAwakened = true
+            }
         }
 
-        // Receivers — same pattern: transient `currentlyLit` every frame,
-        // persistent `discovered` set unions in any new hits.
-        currentlyLitReceiverIDs = LightSimulation.receivers(activatedBy: currentBeam, receivers: receivers)
-        discoveredReceiverIDs.formUnion(currentlyLitReceiverIDs)
+        // Receiver charges
+        for receiver in receivers where !discoveredReceiverIDs.contains(receiver.id) {
+            let isLit = currentlyLitReceiverIDs.contains(receiver.id)
+            let current = receiverChargeProgress[receiver.id] ?? 0
+            if isLit, current < 1 {
+                let next = min(1, current + CGFloat(dt) / CGFloat(chargeDuration))
+                receiverChargeProgress[receiver.id] = next
+                if next >= 1 {
+                    discoveredReceiverIDs.insert(receiver.id)
+                }
+            }
+        }
 
         if beaconRestored, phase == .awake {
             phase = .solved
         }
     }
 
+    /// Charge progress for a specific receiver — used by the view to draw the
+    /// circular charge ring.
+    func chargeProgress(for receiverID: String) -> CGFloat {
+        receiverChargeProgress[receiverID] ?? 0
+    }
+
+    // MARK: - Geometry helpers
+
     private func beamHitsSpark() -> Bool {
-        // Same segment-vs-circle test the simulation uses for receivers.
         guard let segment = currentBeam.segments.first else { return false }
         return distanceFromPointToSegment(sparkPosition, segment: segment) <= sparkRadius
     }

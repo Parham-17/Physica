@@ -1,12 +1,13 @@
 import SwiftUI
 import SwiftData
 
-/// M1 Sleeping Beacon — greybox SwiftUI scene. Portrait layout: beacon column
-/// at the top, 3 receiver crystals + Spark in the middle band, lantern slider
-/// near the bottom (above the dialogue overlay).
+/// M1 Sleeping Beacon — greybox SwiftUI scene.
 ///
-/// The middle 64% of the screen is the play area; the lantern lives at y≈0.65
-/// (still above the dialogue band that starts at y≈0.72).
+/// Layout: gate at the very top; three receiver crystals scattered in the upper
+/// half (one of them obstructed by the central pillar); Spark a faint silhouette
+/// at the lower-left; lantern fixed at the bottom-center. The player drags
+/// anywhere in the play area to aim the beam in that direction, and must hold
+/// the beam on each target long enough to "charge" it.
 struct M1Scene: View {
     @State private var coordinator = M1Coordinator()
     @Environment(DialogueController.self) private var dialogue
@@ -22,7 +23,9 @@ struct M1Scene: View {
                     Color.realmDark.ignoresSafeArea()
 
                     beaconColumn(in: proxy.size)
+                    blockerViews(in: proxy.size)
                     receiverViews(in: proxy.size)
+                    chargeRings(in: proxy.size)
 
                     if isPuzzlePhase {
                         beamPath(in: proxy.size)
@@ -32,6 +35,8 @@ struct M1Scene: View {
                         sparkWalkingView(in: proxy.size)
                     }
                 }
+                .contentShape(Rectangle())
+                .gesture(aimDragGesture(in: proxy.size))
             }
 
             if coordinator.phase == .walking {
@@ -69,7 +74,7 @@ struct M1Scene: View {
             handleBeatTransition(from: oldBeat, to: newBeat)
         }
         .task(id: coordinator.phase) {
-            await runWalkLoopIfNeeded()
+            await runPhaseLoopIfNeeded()
         }
     }
 
@@ -81,15 +86,50 @@ struct M1Scene: View {
         }
     }
 
-    /// Drives `coordinator.tickWalk(dt:)` at ~60fps while the walking phase is active.
-    /// Cancels automatically when `coordinator.phase` changes (SwiftUI's `.task(id:)`).
-    private func runWalkLoopIfNeeded() async {
-        guard coordinator.phase == .walking else { return }
+    // MARK: - Per-frame loops
+
+    /// SwiftUI `.task(id: phase)` cancels the previous task and starts a new
+    /// one each time `phase` changes. Each phase's loop returns immediately
+    /// when invoked for a phase it doesn't handle.
+    private func runPhaseLoopIfNeeded() async {
+        switch coordinator.phase {
+        case .awake:   await runPuzzleLoop()
+        case .walking: await runWalkLoop()
+        default:       break
+        }
+    }
+
+    private func runPuzzleLoop() async {
+        let dt: CGFloat = 1.0 / 60.0
+        while !Task.isCancelled, coordinator.phase == .awake {
+            coordinator.tickPuzzle(dt: dt)
+            try? await Task.sleep(nanoseconds: 16_000_000)
+        }
+    }
+
+    private func runWalkLoop() async {
         let dt: CGFloat = 1.0 / 60.0
         while !Task.isCancelled, coordinator.phase == .walking {
             coordinator.tickWalk(dt: dt)
             try? await Task.sleep(nanoseconds: 16_000_000)
         }
+    }
+
+    // MARK: - Aim gesture
+
+    private func aimDragGesture(in size: CGSize) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                guard coordinator.phase == .awake else { return }
+                coordinator.handleAim(to: CGPoint(
+                    x: value.location.x / size.width,
+                    y: value.location.y / size.height
+                ))
+            }
+            .onEnded { _ in
+                guard coordinator.phase == .awake else { return }
+                coordinator.endAim()
+            }
     }
 
     // MARK: - Setup
@@ -100,14 +140,10 @@ struct M1Scene: View {
             try dialogue.loadScript(filename: "M1Dialogue")
             dialogue.fire(trigger: "onSceneLoaded")
         } catch {
-            // In Phase 1, missing JSON is non-fatal — Spark just doesn't talk.
             assertionFailure("M1Dialogue.json failed to load: \(error)")
         }
     }
 
-    /// Game-state-driven beat firing. Each new state change OR each beat dismissal
-    /// re-checks every trigger — beats that couldn't fire earlier (because another
-    /// beat was active) get a second chance once the overlay is free.
     private func tryFireQueuedBeats() {
         if coordinator.sparkAwakened, !flags.hasBeatFired("m1_discovery") {
             dialogue.fire(trigger: "onSparkActivated")
@@ -118,24 +154,17 @@ struct M1Scene: View {
     }
 
     private func handleBeatTransition(from oldBeat: DialogueBeat?, to newBeat: DialogueBeat?) {
-        // Any beat just dismissed — see if any others want to fire.
         if oldBeat != nil, newBeat == nil {
             tryFireQueuedBeats()
         }
-
-        // Opening dismissed → unlock the lantern.
         if oldBeat?.id == "m1_opening", newBeat == nil {
             coordinator.dialogueDidDismissOpening()
         }
-
-        // Insight dismissed → fire the Connection beat (the streetlight bridge).
         if oldBeat?.id == "m1_insight", newBeat == nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                 dialogue.fire(trigger: "onContinueAfterInsight")
             }
         }
-
-        // Connection dismissed → Spark starts walking toward the open gate.
         if oldBeat?.id == "m1_connection", newBeat == nil {
             coordinator.startWalking()
         }
@@ -161,14 +190,32 @@ struct M1Scene: View {
             discoveredCount: coordinator.discoveredReceiverIDs.count,
             isOpen: coordinator.beaconRestored
         )
-        .frame(
-            width: size.width * r.width,
-            height: size.height * r.height
-        )
-        .position(
-            x: size.width * r.midX,
-            y: size.height * r.midY
-        )
+        .frame(width: size.width * r.width, height: size.height * r.height)
+        .position(x: size.width * r.midX, y: size.height * r.midY)
+        .allowsHitTesting(false)
+    }
+
+    private func blockerViews(in size: CGSize) -> some View {
+        ZStack {
+            if isPuzzlePhase {
+                ForEach(coordinator.blockers) { blocker in
+                    let rect = blocker.bounds
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(LinearGradient(
+                            colors: [Color(white: 0.22), Color(white: 0.12)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(Color(white: 0.35), lineWidth: 1.2)
+                        )
+                        .frame(width: size.width * rect.width, height: size.height * rect.height)
+                        .position(x: size.width * rect.midX, y: size.height * rect.midY)
+                }
+            }
+        }
+        .allowsHitTesting(false)
     }
 
     private func receiverViews(in size: CGSize) -> some View {
@@ -181,7 +228,33 @@ struct M1Scene: View {
                 x: size.width * receiver.position.x,
                 y: size.height * receiver.position.y
             )
+            .allowsHitTesting(false)
         }
+    }
+
+    /// Circular charge rings on receivers + Spark while they're being charged.
+    /// Vanishes once a target is fully discovered.
+    private func chargeRings(in size: CGSize) -> some View {
+        ZStack {
+            ForEach(coordinator.receivers) { receiver in
+                let progress = coordinator.chargeProgress(for: receiver.id)
+                if progress > 0, !coordinator.discoveredReceiverIDs.contains(receiver.id) {
+                    ChargeRing(progress: progress, radius: 30)
+                        .position(
+                            x: size.width * receiver.position.x,
+                            y: size.height * receiver.position.y
+                        )
+                }
+            }
+            if coordinator.sparkChargeProgress > 0, !coordinator.sparkAwakened {
+                ChargeRing(progress: coordinator.sparkChargeProgress, radius: 54)
+                    .position(
+                        x: size.width * coordinator.sparkPosition.x,
+                        y: size.height * coordinator.sparkPosition.y
+                    )
+            }
+        }
+        .allowsHitTesting(false)
     }
 
     private func sparkView(in size: CGSize) -> some View {
@@ -198,14 +271,15 @@ struct M1Scene: View {
         )
         .animation(.easeOut(duration: 0.55), value: coordinator.sparkAwakened)
         .animation(.easeOut(duration: 0.25), value: coordinator.sparkCurrentlyLit)
+        .allowsHitTesting(false)
     }
 
-    /// Pre-awakening, Spark is a faint silhouette — the player can sense
-    /// *something* is there, but not see it clearly until they bring the light
-    /// to him. After waking up, he's fully visible regardless of beam contact.
+    /// Pre-awakening: a very faint silhouette. The player has to *find* him —
+    /// they should sense something is there but not be able to read it as Spark
+    /// until they bring the light close.
     private var sparkOpacity: Double {
         if coordinator.sparkAwakened { return 1.0 }
-        return coordinator.sparkCurrentlyLit ? 1.0 : 0.32
+        return coordinator.sparkCurrentlyLit ? 1.0 : 0.18
     }
 
     private var sparkExpression: SparkExpression {
@@ -218,8 +292,6 @@ struct M1Scene: View {
         return coordinator.sparkCurrentlyLit ? .bright : .warm
     }
 
-    /// Spark seen from behind during the walking phase. Joystick drives his
-    /// position; we just render the static back-facing image.
     private func sparkWalkingView(in size: CGSize) -> some View {
         ZStack {
             Circle()
@@ -235,20 +307,23 @@ struct M1Scene: View {
             x: size.width * coordinator.sparkWalkPosition.x,
             y: size.height * coordinator.sparkWalkPosition.y
         )
+        .allowsHitTesting(false)
     }
 
     private func beamPath(in size: CGSize) -> some View {
         Canvas { context, _ in
             guard let segment = coordinator.currentBeam.segments.first else { return }
+            let start = CGPoint(x: size.width * segment.start.x, y: size.height * segment.start.y)
+            let end = CGPoint(x: size.width * segment.end.x, y: size.height * segment.end.y)
             var path = Path()
-            path.move(to: CGPoint(x: size.width * segment.start.x, y: size.height * segment.start.y))
-            path.addLine(to: CGPoint(x: size.width * segment.end.x, y: size.height * segment.end.y))
+            path.move(to: start)
+            path.addLine(to: end)
             context.stroke(
                 path,
                 with: .linearGradient(
                     Gradient(colors: [Color.beaconYellow.opacity(0.85), Color.beaconYellow.opacity(0.15)]),
-                    startPoint: CGPoint(x: size.width * segment.start.x, y: size.height * segment.start.y),
-                    endPoint: CGPoint(x: size.width * segment.end.x, y: size.height * segment.end.y)
+                    startPoint: start,
+                    endPoint: end
                 ),
                 lineWidth: 8
             )
@@ -260,18 +335,11 @@ struct M1Scene: View {
     private func lanternView(in size: CGSize) -> some View {
         LanternView(isOn: coordinator.lanternIsOn)
             .position(
-                x: size.width * coordinator.lanternX,
-                y: size.height * coordinator.lanternY
+                x: size.width * coordinator.lanternPosition.x,
+                y: size.height * coordinator.lanternPosition.y
             )
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        guard coordinator.phase == .awake || coordinator.phase == .solved else { return }
-                        let normalizedX = value.location.x / size.width
-                        coordinator.handleLanternDrag(to: normalizedX)
-                    }
-            )
-            .accessibilityLabel("Lantern — drag to aim the beam")
+            .allowsHitTesting(false)
+            .accessibilityLabel("Lantern — drag in the play area to aim the beam")
     }
 
     @ToolbarContentBuilder
@@ -293,13 +361,9 @@ struct M1Scene: View {
 // MARK: - Receiver crystal
 
 /// Receiver crystal. Four visual states:
-///   - **undiscovered**: completely invisible — the player hasn't brought light
-///     here yet, so it isn't there to be seen (the gameplay-level expression of
-///     M1's lesson: "light reveals what it touches")
-///   - **currentlyLit (first time)**: fades in bright with a halo
-///   - **currentlyLit (subsequent)**: bright yellow with halo
-///   - **discovered, not lit**: cold dark crystal with a small persistent
-///     sparkle (we've seen this thing; it's part of the world now)
+///   - **undiscovered**: invisible (M1's lesson, embodied)
+///   - **currentlyLit**: bright yellow with halo
+///   - **discovered, not lit**: cold dark crystal + a small persistent sparkle
 private struct ReceiverView: View {
     let currentlyLit: Bool
     let discovered: Bool
@@ -325,8 +389,6 @@ private struct ReceiverView: View {
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(.white)
             } else if discovered {
-                // Tiny persistent marker — "we know this is here" without
-                // pretending the crystal is still lit.
                 Circle()
                     .fill(Color.beaconYellow.opacity(0.85))
                     .frame(width: 6, height: 6)
@@ -341,14 +403,34 @@ private struct ReceiverView: View {
     }
 }
 
+// MARK: - Charge ring
+
+/// A circular progress ring drawn around a target while it's being charged.
+/// `progress` is in 0…1 — when it hits 1, the parent view removes the ring.
+private struct ChargeRing: View {
+    let progress: CGFloat
+    let radius: CGFloat
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.white.opacity(0.08), lineWidth: 3)
+                .frame(width: radius * 2, height: radius * 2)
+            Circle()
+                .trim(from: 0, to: max(0, min(1, progress)))
+                .stroke(Color.beaconYellow, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .frame(width: radius * 2, height: radius * 2)
+                .shadow(color: Color.beaconWarm.opacity(0.6), radius: 5)
+        }
+        .animation(.linear(duration: 0.05), value: progress)
+    }
+}
+
 // MARK: - Gate
 
-/// The Dawn Court gate. Starts closed; three small lights along the top track
-/// how many receivers have been discovered. Once the puzzle solves (all 3
-/// receivers discovered + Spark awakened), the two door halves slide apart
-/// and a warm portal of light pours out.
 private struct GateView: View {
-    let discoveredCount: Int    // 0–3
+    let discoveredCount: Int
     let isOpen: Bool
 
     var body: some View {
@@ -357,7 +439,6 @@ private struct GateView: View {
             let h = proxy.size.height
 
             ZStack {
-                // Outer frame
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color.realmMid)
                     .overlay(
@@ -365,7 +446,6 @@ private struct GateView: View {
                             .stroke(Color.white.opacity(0.12), lineWidth: 2)
                     )
 
-                // Inner glow — only visible when the gate is open
                 if isOpen {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.beaconYellow)
@@ -373,7 +453,6 @@ private struct GateView: View {
                         .shadow(color: Color.beaconWarm.opacity(0.9), radius: 36)
                 }
 
-                // Two door halves — slide apart when opening
                 HStack(spacing: 0) {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.realmDark)
@@ -388,7 +467,6 @@ private struct GateView: View {
                 .padding(6)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                // Indicator lights along the top — one per receiver
                 HStack(spacing: 8) {
                     ForEach(0..<3, id: \.self) { i in
                         Circle()
@@ -408,7 +486,7 @@ private struct GateView: View {
     }
 }
 
-// MARK: - Lantern placeholder
+// MARK: - Lantern
 
 private struct LanternView: View {
     let isOn: Bool
@@ -439,11 +517,8 @@ private struct LanternView: View {
     }
 }
 
-// MARK: - Joystick pad
+// MARK: - Joystick
 
-/// Round virtual joystick. Reports its current direction (unit-clamped vector
-/// in [-1, 1] for each axis) via `onChange` whenever the user drags the thumb.
-/// Resets to `.zero` on release.
 private struct JoystickPad: View {
     let onChange: (CGVector) -> Void
 
