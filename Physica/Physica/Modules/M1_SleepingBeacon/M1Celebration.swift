@@ -22,7 +22,7 @@ struct M1CelebrationView: View {
             VStack(spacing: Spacing.xl) {
                 Spacer()
 
-                Text("Well done.")
+                Text("Well done!")
                     .font(.gameTitle)
                     .foregroundStyle(.white)
                     .opacity(titleVisible ? 1 : 0)
@@ -71,10 +71,18 @@ struct M1CelebrationView: View {
                 .fill(Color.beaconWarm.opacity(0.5))
                 .frame(width: 200, height: 200)
                 .blur(radius: 32)
-            Image("SparkFrontHappy")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 160, height: 160)
+
+            // Body + propeller composite. Propeller is STATIC (no rotation
+            // modifier) — celebration is a frozen pose, not in-motion.
+            ZStack {
+                Image("SparkFrontHappy")
+                    .resizable()
+                    .scaledToFit()
+                Image("SparkPropeller")
+                    .resizable()
+                    .scaledToFit()
+            }
+            .frame(width: 160, height: 160)
         }
     }
 

@@ -10,6 +10,7 @@ import SwiftData
 /// the beam on each target long enough to "charge" it.
 struct M1Scene: View {
     @State private var coordinator = M1Coordinator()
+    @State private var hasDraggedYet = false
     @Environment(DialogueController.self) private var dialogue
     @Environment(NarrativeFlags.self) private var flags
     @Environment(AppRouter.self) private var router
@@ -33,6 +34,10 @@ struct M1Scene: View {
                         lanternView(in: proxy.size)
                     } else {
                         sparkWalkingView(in: proxy.size)
+                    }
+
+                    if shouldShowAimHint {
+                        aimHintView(in: proxy.size)
                     }
                 }
                 .contentShape(Rectangle())
@@ -121,6 +126,7 @@ struct M1Scene: View {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
                 guard coordinator.phase == .awake else { return }
+                if !hasDraggedYet { hasDraggedYet = true }
                 coordinator.handleAim(to: CGPoint(
                     x: value.location.x / size.width,
                     y: value.location.y / size.height
@@ -130,6 +136,25 @@ struct M1Scene: View {
                 guard coordinator.phase == .awake else { return }
                 coordinator.endAim()
             }
+    }
+
+    /// Aim hint shows only at the very start — once during the first `.awake`
+    /// phase, before the player has dragged anywhere. Dismisses the moment they
+    /// touch the screen and stays gone.
+    private var shouldShowAimHint: Bool {
+        coordinator.phase == .awake && !hasDraggedYet
+    }
+
+    /// Animated drag hint above the lantern: pulsing ring + label + a small
+    /// hand icon arcing left-right so the player knows to drag-and-hold, not tap.
+    private func aimHintView(in size: CGSize) -> some View {
+        AimHintView()
+            .position(
+                x: size.width * coordinator.lanternPosition.x,
+                y: size.height * coordinator.lanternPosition.y - 80
+            )
+            .transition(.opacity)
+            .allowsHitTesting(false)
     }
 
     // MARK: - Setup
@@ -256,7 +281,7 @@ struct M1Scene: View {
             expression: sparkExpression,
             glow: sparkGlow,
             size: 96,
-            haloScale: 1.18      // tight halo — just a glow at the edge of his body, not a wide aura
+            haloScale: 1.05      // very tight — just kisses the silhouette
         )
         .opacity(sparkOpacity)
         .position(
@@ -535,17 +560,66 @@ private struct LanternView: View {
     }
 }
 
+// MARK: - Aim hint
+
+/// First-time-only hint that fades up above the lantern, showing the player
+/// they should *drag* (not tap) to aim the beam. A small hand icon traces a
+/// gentle arc; the surrounding ring pulses; the label sits underneath.
+private struct AimHintView: View {
+    @State private var sweep: CGFloat = -1   // -1...+1 horizontal sweep
+    @State private var pulse: CGFloat = 1.0
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ZStack {
+                Circle()
+                    .stroke(Color.beaconYellow.opacity(0.55), lineWidth: 2)
+                    .frame(width: 64, height: 64)
+                    .scaleEffect(pulse)
+                    .opacity(2 - Double(pulse))
+
+                Image(systemName: "hand.point.up.left.fill")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.9))
+                    .offset(x: sweep * 22, y: -sweep * 10)
+                    .shadow(color: Color.beaconWarm.opacity(0.5), radius: 6)
+            }
+
+            Text("Drag and hold to aim the light")
+                .font(.hintCaption)
+                .foregroundStyle(.white.opacity(0.75))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(Color.realmMid.opacity(0.7))
+                )
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                sweep = 1
+            }
+            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: false)) {
+                pulse = 1.6
+            }
+        }
+    }
+}
+
 // MARK: - Back propeller spin
 
 /// Rotates the back-view propeller blades continuously at a fixed rate, with
 /// the same 3D X-axis tilt + perspective as `SparkView`'s front-view propeller
 /// so the blades read as a horizontal disc spinning *above* Spark's head, not
-/// a flat spinner behind him. The anchor mirrors the front view's pivot point.
+/// a flat spinner behind him.
+///
+/// The anchor is matched to the back-view blade SVG's actual content position
+/// (Y ≈ 171/1024 ≈ 0.167 in canvas space). The front-view blades sit higher
+/// (Y ≈ 107/1024 ≈ 0.104), so the two views need different anchors.
 private struct BackPropellerSpin: ViewModifier {
-    /// Constant. Doesn't change with joystick input — Spark's propeller spins
-    /// the same whether he's still or moving.
-    static let speed: Double = 540
-    static let anchor = UnitPoint(x: 0.495, y: 0.104)
+    /// Constant. Doesn't change with joystick input.
+    static let speed: Double = 420
+    static let anchor = UnitPoint(x: 0.5, y: 0.171)
 
     func body(content: Content) -> some View {
         TimelineView(.animation) { context in
