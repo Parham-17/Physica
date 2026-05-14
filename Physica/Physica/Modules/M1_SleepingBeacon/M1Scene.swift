@@ -131,8 +131,8 @@ struct M1Scene: View {
         let progress = activelyChargingProgress()
         if progress > 0.01 {
             let p = Double(progress)
-            let intensity = Float(0.10 + pow(p, 1.6) * 0.90)   // 0.10 → 1.0, slow-then-fast ramp
-            let sharpness = Float(0.15 + pow(p, 1.4) * 0.65)   // 0.15 → 0.80
+            let intensity = Float(0.18 + pow(p, 1.4) * 0.82)   // 0.18 → 1.0, slow-then-fast ramp
+            let sharpness = Float(0.22 + pow(p, 1.3) * 0.68)   // 0.22 → 0.90
             if chargingHaptics.isRunning {
                 chargingHaptics.update(intensity: intensity, sharpness: sharpness)
             } else {
