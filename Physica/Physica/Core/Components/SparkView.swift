@@ -27,6 +27,10 @@ struct SparkView: View {
     var expression: SparkExpression = .idle
     var glow: GlowState = .stable
     var size: CGFloat = 80
+    /// Halo frame as a multiple of `size`. Default 1.65 — call sites that want
+    /// a tighter glow around Spark (e.g. M1 when the beam touches him) can pass
+    /// a smaller value like 1.1–1.25.
+    var haloScale: CGFloat = 1.65
 
     @State private var hover: CGFloat = 0
     @State private var halo: CGFloat = 1.0
@@ -41,8 +45,8 @@ struct SparkView: View {
             // Halo glow — softer behind the character
             Circle()
                 .fill(mode.glowColor.opacity(haloOpacity))
-                .frame(width: size * 1.65, height: size * 1.65)
-                .blur(radius: size * 0.22)
+                .frame(width: size * haloScale, height: size * haloScale)
+                .blur(radius: size * 0.18)
                 .scaleEffect(halo)
                 .opacity(glow == .dim ? 0 : 1)
 
@@ -90,16 +94,9 @@ struct SparkView: View {
         }
     }
 
-    private var propellerDegreesPerSecond: Double {
-        switch expression {
-        case .idle:     return 360
-        case .curious:  return 450
-        case .alarmed:  return 320
-        case .hopeful:  return 540
-        case .steady:   return 380
-        case .resolved: return 480
-        }
-    }
+    /// Propeller spins at a constant rate regardless of expression — it's part
+    /// of Spark's "always-on" idle, not an indicator of internal state.
+    private var propellerDegreesPerSecond: Double { 420 }
 
     // MARK: - Tap bounce (callable from the parent)
 

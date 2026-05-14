@@ -34,12 +34,13 @@ final class M1Coordinator {
     let beaconColumnRect = CGRect(x: 0.35, y: 0.08, width: 0.30, height: 0.12)
 
     /// Three receivers placed so each requires a distinct aim direction.
-    /// R1 = far upper-left, R2 = far upper-right, R3 = just to the right of
-    /// the pillar.
+    /// R1 = far upper-left, R2 = far upper-right, R3 = lower-right — the three
+    /// are spread across three different angles so the same drag never finds
+    /// two of them at once.
     private(set) var receivers: [LightReceiver] = [
         LightReceiver(id: "r1", position: CGPoint(x: 0.16, y: 0.22), radius: 0.05, requiredIntensity: 0.5, isActivated: false),
         LightReceiver(id: "r2", position: CGPoint(x: 0.84, y: 0.22), radius: 0.05, requiredIntensity: 0.5, isActivated: false),
-        LightReceiver(id: "r3", position: CGPoint(x: 0.70, y: 0.36), radius: 0.05, requiredIntensity: 0.5, isActivated: false)
+        LightReceiver(id: "r3", position: CGPoint(x: 0.82, y: 0.56), radius: 0.05, requiredIntensity: 0.5, isActivated: false)
     ]
 
     /// Stone pillar in the middle of the play area. Blocks any direct vertical

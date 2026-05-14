@@ -255,7 +255,8 @@ struct M1Scene: View {
             mode: .yellow,
             expression: sparkExpression,
             glow: sparkGlow,
-            size: 96
+            size: 96,
+            haloScale: 1.18      // tight halo — just a glow at the edge of his body, not a wide aura
         )
         .opacity(sparkOpacity)
         .position(
@@ -288,24 +289,23 @@ struct M1Scene: View {
     }
 
     /// Spark from behind during the walking phase. His own internal LEDs are
-    /// on — bluish halo behind him. As the player tilts the joystick, Spark
-    /// leans in the direction of motion, and the propeller above his head
-    /// spins faster the harder the player pushes.
+    /// on — tight bluish halo behind him. He tilts in the joystick's direction;
+    /// the propeller above his head spins at a constant rate with proper
+    /// 3D tilt so it looks anchored to the antenna, not behind his head.
     private func sparkWalkingView(in size: CGSize) -> some View {
         let input = coordinator.joystickInput
-        let mag = hypot(input.dx, input.dy)
-        let tilt = Double(input.dx) * 14            // up to ±14° lean
-        let pitch = Double(input.dy) * 8            // slight nose-down/up
-        let propellerSpeed = 360 + Double(mag) * 540  // 360°/s idle → ~900°/s full
+        let tilt = Double(input.dx) * 14    // ±14° lean horizontally
+        let pitch = Double(input.dy) * 8    // slight nose-down/up
 
         return ZStack {
-            // Internal-LED blue halo — Spark's lights are on, he's powered up
+            // Internal-LED blue halo — tight aura right around his body.
             Circle()
-                .fill(Color.electricBlue.opacity(0.55))
-                .frame(width: 160, height: 160)
-                .blur(radius: 30)
+                .fill(Color.electricBlue.opacity(0.45))
+                .frame(width: 122, height: 122)
+                .blur(radius: 20)
 
-            // Body + spinning propeller composite
+            // Body + spinning propeller composite — same scaledToFit stack
+            // pattern as the front view in SparkView so the assets align.
             ZStack {
                 Image("SparkBack")
                     .resizable()
@@ -313,7 +313,7 @@ struct M1Scene: View {
                 Image("SparkBackPropellerBlades")
                     .resizable()
                     .scaledToFit()
-                    .modifier(BackPropellerSpin(speed: propellerSpeed))
+                    .modifier(BackPropellerSpin())
             }
             .frame(width: 110, height: 110)
             .rotationEffect(.degrees(tilt))
@@ -537,17 +537,27 @@ private struct LanternView: View {
 
 // MARK: - Back propeller spin
 
-/// Rotates the back-view propeller blades continuously at `speed` degrees/sec.
-/// The blades pivot near the top of the body (where the antenna meets) so the
-/// rotation looks anchored to Spark, not to the image center.
+/// Rotates the back-view propeller blades continuously at a fixed rate, with
+/// the same 3D X-axis tilt + perspective as `SparkView`'s front-view propeller
+/// so the blades read as a horizontal disc spinning *above* Spark's head, not
+/// a flat spinner behind him. The anchor mirrors the front view's pivot point.
 private struct BackPropellerSpin: ViewModifier {
-    let speed: Double
+    /// Constant. Doesn't change with joystick input — Spark's propeller spins
+    /// the same whether he's still or moving.
+    static let speed: Double = 540
+    static let anchor = UnitPoint(x: 0.495, y: 0.104)
 
     func body(content: Content) -> some View {
         TimelineView(.animation) { context in
-            let angle = context.date.timeIntervalSinceReferenceDate * speed
+            let angle = context.date.timeIntervalSinceReferenceDate * Self.speed
             content
-                .rotationEffect(.degrees(angle), anchor: UnitPoint(x: 0.5, y: 0.10))
+                .rotationEffect(.degrees(angle), anchor: Self.anchor)
+                .rotation3DEffect(
+                    .degrees(70),
+                    axis: (x: 1, y: 0, z: 0),
+                    anchor: Self.anchor,
+                    perspective: 0.3
+                )
         }
     }
 }
