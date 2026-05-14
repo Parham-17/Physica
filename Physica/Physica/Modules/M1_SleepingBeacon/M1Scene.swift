@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import CoreHaptics
 
 /// M1 Sleeping Beacon — greybox SwiftUI scene.
 ///
@@ -12,6 +13,7 @@ import UIKit
 struct M1Scene: View {
     @State private var coordinator = M1Coordinator()
     @State private var hasDraggedYet = false
+    @State private var chargingHaptics = ChargingHaptic()
     @Environment(DialogueController.self) private var dialogue
     @Environment(NarrativeFlags.self) private var flags
     @Environment(AppRouter.self) private var router
@@ -107,32 +109,33 @@ struct M1Scene: View {
 
     private func runPuzzleLoop() async {
         let dt: CGFloat = 1.0 / 60.0
-        var lastHapticTime: TimeInterval = 0
 
         while !Task.isCancelled, coordinator.phase == .awake {
             coordinator.tickPuzzle(dt: dt)
-            firePulseHapticIfNeeded(lastTime: &lastHapticTime)
+            updateChargingHaptic()
             try? await Task.sleep(nanoseconds: 16_000_000)
         }
+
+        // Phase changed — make sure the continuous haptic doesn't keep playing.
+        chargingHaptics.stop()
     }
 
-    /// Subtle rising-intensity haptic while the beam is holding a crystal in
-    /// charge. The pulse interval shrinks and the intensity grows as charge
-    /// progresses, so the player physically feels the buildup. Stops when no
-    /// receiver is being actively charged.
-    private func firePulseHapticIfNeeded(lastTime: inout TimeInterval) {
+    /// Drives the continuous charging haptic each frame: starts the pattern
+    /// when a crystal begins charging, smoothly ramps intensity with progress,
+    /// stops the moment no crystal is being charged.
+    private func updateChargingHaptic() {
         let progress = activelyChargingProgress()
-        guard progress > 0.01 else { return }
-
-        let now = Date().timeIntervalSinceReferenceDate
-        // Interval: ~0.22s at 0% charge → ~0.06s near full charge (faster pulse).
-        let interval = 0.22 - 0.16 * Double(progress)
-        guard now - lastTime >= interval else { return }
-
-        // Intensity: 0.25 → 1.0 across the charge.
-        let intensity = 0.25 + Double(progress) * 0.75
-        UIImpactFeedbackGenerator(style: .soft).impactOccurred(intensity: intensity)
-        lastTime = now
+        if progress > 0.01 {
+            let intensity = Float(0.30 + Double(progress) * 0.70)   // 0.30 → 1.0
+            let sharpness = Float(0.35 + Double(progress) * 0.45)   // 0.35 → 0.80 (more crisp near full)
+            if chargingHaptics.isRunning {
+                chargingHaptics.update(intensity: intensity, sharpness: sharpness)
+            } else {
+                chargingHaptics.start(intensity: intensity, sharpness: sharpness)
+            }
+        } else if chargingHaptics.isRunning {
+            chargingHaptics.stop()
+        }
     }
 
     /// Highest charge progress among receivers currently being charged (lit
@@ -592,6 +595,96 @@ private struct LanternView: View {
             }
         }
         .animation(.easeOut(duration: 0.25), value: isOn)
+    }
+}
+
+// MARK: - Charging haptic (CoreHaptics continuous)
+
+/// Drives a continuous CoreHaptics pattern whose intensity + sharpness can be
+/// dynamically updated each frame. Used by M1 to give the player a smooth,
+/// rising vibration while a crystal is being charged.
+///
+/// Why CoreHaptics instead of `UIImpactFeedbackGenerator`? Impact generators
+/// fire discrete pulses and the OS throttles them to ~10/sec — at the speeds
+/// needed for a "smooth rising buzz" they always feel scattered. A continuous
+/// pattern is genuinely continuous in hardware, with dynamic parameters.
+@Observable
+final class ChargingHaptic {
+    private var engine: CHHapticEngine?
+    private var player: CHHapticAdvancedPatternPlayer?
+    private(set) var isRunning = false
+
+    func start(intensity: Float, sharpness: Float) {
+        prepareEngine()
+        guard let engine, !isRunning else { return }
+        do {
+            let event = CHHapticEvent(
+                eventType: .hapticContinuous,
+                parameters: [
+                    CHHapticEventParameter(parameterID: .hapticIntensity, value: intensity),
+                    CHHapticEventParameter(parameterID: .hapticSharpness, value: sharpness)
+                ],
+                relativeTime: 0,
+                duration: 30  // long upper bound; we stop manually
+            )
+            let pattern = try CHHapticPattern(events: [event], parameters: [])
+            let newPlayer = try engine.makeAdvancedPlayer(with: pattern)
+            try newPlayer.start(atTime: CHHapticTimeImmediate)
+            player = newPlayer
+            isRunning = true
+        } catch {
+            // Hardware unsupported, engine glitched — silently fall back to no haptic.
+        }
+    }
+
+    /// Smoothly adjust the running pattern's intensity + sharpness (called
+    /// every frame while the crystal charges). No-op if not running.
+    func update(intensity: Float, sharpness: Float) {
+        guard isRunning, let player else { return }
+        let clampedIntensity = max(0, min(1, intensity))
+        let clampedSharpness = max(0, min(1, sharpness))
+        try? player.sendParameters(
+            [
+                CHHapticDynamicParameter(
+                    parameterID: .hapticIntensityControl,
+                    value: clampedIntensity,
+                    relativeTime: 0
+                ),
+                CHHapticDynamicParameter(
+                    parameterID: .hapticSharpnessControl,
+                    value: clampedSharpness,
+                    relativeTime: 0
+                )
+            ],
+            atTime: CHHapticTimeImmediate
+        )
+    }
+
+    func stop() {
+        guard isRunning else { return }
+        try? player?.stop(atTime: CHHapticTimeImmediate)
+        player = nil
+        isRunning = false
+    }
+
+    /// Lazily creates + starts the CHHapticEngine. The engine is shared across
+    /// all `start`s for the lifetime of this controller.
+    private func prepareEngine() {
+        guard engine == nil else { return }
+        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
+        do {
+            let e = try CHHapticEngine()
+            // iOS can stop the engine on app interruptions (audio session changes,
+            // backgrounding, etc.); restart it transparently.
+            e.resetHandler = { [weak e] in
+                try? e?.start()
+            }
+            e.stoppedHandler = { _ in /* engine stopped; will recreate next start */ }
+            try e.start()
+            engine = e
+        } catch {
+            // Silent: device unsupported or transient failure.
+        }
     }
 }
 
