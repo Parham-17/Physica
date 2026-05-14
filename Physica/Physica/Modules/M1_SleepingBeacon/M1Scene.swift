@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 /// M1 Sleeping Beacon — greybox SwiftUI scene.
 ///
@@ -106,10 +107,44 @@ struct M1Scene: View {
 
     private func runPuzzleLoop() async {
         let dt: CGFloat = 1.0 / 60.0
+        var lastHapticTime: TimeInterval = 0
+
         while !Task.isCancelled, coordinator.phase == .awake {
             coordinator.tickPuzzle(dt: dt)
+            firePulseHapticIfNeeded(lastTime: &lastHapticTime)
             try? await Task.sleep(nanoseconds: 16_000_000)
         }
+    }
+
+    /// Subtle rising-intensity haptic while the beam is holding a crystal in
+    /// charge. The pulse interval shrinks and the intensity grows as charge
+    /// progresses, so the player physically feels the buildup. Stops when no
+    /// receiver is being actively charged.
+    private func firePulseHapticIfNeeded(lastTime: inout TimeInterval) {
+        let progress = activelyChargingProgress()
+        guard progress > 0.01 else { return }
+
+        let now = Date().timeIntervalSinceReferenceDate
+        // Interval: ~0.22s at 0% charge → ~0.06s near full charge (faster pulse).
+        let interval = 0.22 - 0.16 * Double(progress)
+        guard now - lastTime >= interval else { return }
+
+        // Intensity: 0.25 → 1.0 across the charge.
+        let intensity = 0.25 + Double(progress) * 0.75
+        UIImpactFeedbackGenerator(style: .soft).impactOccurred(intensity: intensity)
+        lastTime = now
+    }
+
+    /// Highest charge progress among receivers currently being charged (lit
+    /// by the beam but not yet discovered). Returns 0 if nothing is charging.
+    private func activelyChargingProgress() -> CGFloat {
+        coordinator.receivers.compactMap { receiver -> CGFloat? in
+            guard coordinator.currentlyLitReceiverIDs.contains(receiver.id),
+                  !coordinator.discoveredReceiverIDs.contains(receiver.id)
+            else { return nil }
+            return coordinator.chargeProgress(for: receiver.id)
+        }
+        .max() ?? 0
     }
 
     private func runWalkLoop() async {
