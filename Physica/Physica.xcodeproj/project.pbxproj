@@ -6,7 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		525127B32FB615DF0094B931 /* Spark.icon in Resources */ = {isa = PBXBuildFile; fileRef = 525127B22FB615DF0094B931 /* Spark.icon */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		525127B22FB615DF0094B931 /* Spark.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Spark.icon; sourceTree = "<group>"; };
 		7D676FC22FAD1E8B00575CAB /* Physica.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Physica.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -40,6 +45,7 @@
 				7D676FC42FAD1E8B00575CAB /* Physica */,
 				7D4660782FAD544400764788 /* docs */,
 				7D676FC32FAD1E8B00575CAB /* Products */,
+				525127B22FB615DF0094B931 /* Spark.icon */,
 			);
 			sourceTree = "<group>";
 		};
@@ -116,6 +122,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				525127B32FB615DF0094B931 /* Spark.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -260,7 +267,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PRPH5X7Y2F;
+				DEVELOPMENT_TEAM = 5YH873AVKF;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -293,7 +300,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PRPH5X7Y2F;
+				DEVELOPMENT_TEAM = 5YH873AVKF;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
