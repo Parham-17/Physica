@@ -232,8 +232,8 @@ struct M1Scene: View {
         }
     }
 
-    /// Circular charge rings on receivers + Spark while they're being charged.
-    /// Vanishes once a target is fully discovered.
+    /// Circular charge rings on receivers while they're being charged. Spark
+    /// has no charge ring — he awakens instantly on first beam contact.
     private func chargeRings(in size: CGSize) -> some View {
         ZStack {
             ForEach(coordinator.receivers) { receiver in
@@ -245,13 +245,6 @@ struct M1Scene: View {
                             y: size.height * receiver.position.y
                         )
                 }
-            }
-            if coordinator.sparkChargeProgress > 0, !coordinator.sparkAwakened {
-                ChargeRing(progress: coordinator.sparkChargeProgress, radius: 54)
-                    .position(
-                        x: size.width * coordinator.sparkPosition.x,
-                        y: size.height * coordinator.sparkPosition.y
-                    )
             }
         }
         .allowsHitTesting(false)
@@ -289,19 +282,44 @@ struct M1Scene: View {
 
     private var sparkGlow: GlowState {
         if !coordinator.sparkAwakened { return .dim }
-        return coordinator.sparkCurrentlyLit ? .bright : .warm
+        // Awakened — yellow halo *only* while the beam is currently on him.
+        // Off otherwise (no lingering warmth).
+        return coordinator.sparkCurrentlyLit ? .bright : .off
     }
 
+    /// Spark from behind during the walking phase. His own internal LEDs are
+    /// on — bluish halo behind him. As the player tilts the joystick, Spark
+    /// leans in the direction of motion, and the propeller above his head
+    /// spins faster the harder the player pushes.
     private func sparkWalkingView(in size: CGSize) -> some View {
-        ZStack {
+        let input = coordinator.joystickInput
+        let mag = hypot(input.dx, input.dy)
+        let tilt = Double(input.dx) * 14            // up to ±14° lean
+        let pitch = Double(input.dy) * 8            // slight nose-down/up
+        let propellerSpeed = 360 + Double(mag) * 540  // 360°/s idle → ~900°/s full
+
+        return ZStack {
+            // Internal-LED blue halo — Spark's lights are on, he's powered up
             Circle()
-                .fill(Color.beaconWarm.opacity(0.35))
-                .frame(width: 140, height: 140)
-                .blur(radius: 24)
-            Image("SparkBack")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 100, height: 100)
+                .fill(Color.electricBlue.opacity(0.55))
+                .frame(width: 160, height: 160)
+                .blur(radius: 30)
+
+            // Body + spinning propeller composite
+            ZStack {
+                Image("SparkBack")
+                    .resizable()
+                    .scaledToFit()
+                Image("SparkBackPropellerBlades")
+                    .resizable()
+                    .scaledToFit()
+                    .modifier(BackPropellerSpin(speed: propellerSpeed))
+            }
+            .frame(width: 110, height: 110)
+            .rotationEffect(.degrees(tilt))
+            .offset(y: pitch)
+            .animation(.easeOut(duration: 0.15), value: tilt)
+            .animation(.easeOut(duration: 0.15), value: pitch)
         }
         .position(
             x: size.width * coordinator.sparkWalkPosition.x,
@@ -514,6 +532,23 @@ private struct LanternView: View {
             }
         }
         .animation(.easeOut(duration: 0.25), value: isOn)
+    }
+}
+
+// MARK: - Back propeller spin
+
+/// Rotates the back-view propeller blades continuously at `speed` degrees/sec.
+/// The blades pivot near the top of the body (where the antenna meets) so the
+/// rotation looks anchored to Spark, not to the image center.
+private struct BackPropellerSpin: ViewModifier {
+    let speed: Double
+
+    func body(content: Content) -> some View {
+        TimelineView(.animation) { context in
+            let angle = context.date.timeIntervalSinceReferenceDate * speed
+            content
+                .rotationEffect(.degrees(angle), anchor: UnitPoint(x: 0.5, y: 0.10))
+        }
     }
 }
 

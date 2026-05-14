@@ -59,12 +59,9 @@ final class M1Coordinator {
     let chargeDuration: TimeInterval = 0.8
 
     /// 0...1 charge progress per receiver ID. Once it reaches 1, the receiver
-    /// is added to `discoveredReceiverIDs` (permanent).
+    /// is added to `discoveredReceiverIDs` (permanent). Spark does NOT require
+    /// charging — he awakens the moment the beam touches him.
     private(set) var receiverChargeProgress: [String: CGFloat] = [:]
-
-    /// 0...1 charge progress for Spark. Once it reaches 1, `sparkAwakened`
-    /// flips to true (permanent).
-    private(set) var sparkChargeProgress: CGFloat = 0
 
     // MARK: - Mutable game state
 
@@ -192,26 +189,21 @@ final class M1Coordinator {
         currentBeam = LightSimulation.cast(from: emitter, blockers: blockers, maxDistance: 2.0)
 
         sparkCurrentlyLit = beamHitsSpark()
+        if sparkCurrentlyLit, !sparkAwakened {
+            sparkAwakened = true
+        }
         currentlyLitReceiverIDs = LightSimulation.receivers(activatedBy: currentBeam, receivers: receivers)
     }
 
     // MARK: - Per-frame charge tick
 
     /// One frame of puzzle progress. Called from M1Scene while `phase == .awake`.
-    /// Increments charge progress for whatever the beam is currently on; once a
-    /// target's progress hits 1, it's permanently discovered.
+    /// Increments charge progress for each receiver currently lit; once a target's
+    /// progress hits 1, it's permanently discovered. Spark is *not* charged here —
+    /// he awakens instantly the moment the beam first touches him (see `recomputeBeam`).
     func tickPuzzle(dt: CGFloat) {
         guard phase == .awake else { return }
 
-        // Spark charge
-        if sparkCurrentlyLit, !sparkAwakened {
-            sparkChargeProgress = min(1, sparkChargeProgress + CGFloat(dt) / CGFloat(chargeDuration))
-            if sparkChargeProgress >= 1 {
-                sparkAwakened = true
-            }
-        }
-
-        // Receiver charges
         for receiver in receivers where !discoveredReceiverIDs.contains(receiver.id) {
             let isLit = currentlyLitReceiverIDs.contains(receiver.id)
             let current = receiverChargeProgress[receiver.id] ?? 0

@@ -120,6 +120,7 @@ struct SparkView: View {
 
     private var haloOpacity: Double {
         switch glow {
+        case .off:    return 0.0
         case .dim:    return 0.0
         case .warm:   return 0.30
         case .stable: return baseHaloByExpression
@@ -167,7 +168,7 @@ struct SparkView: View {
         guard !reduceMotion else { return }
         // Halo pulse — speed/amplitude varies by expression + glow
         let (duration, target): (Double, CGFloat) = {
-            if glow == .dim { return (3.0, 1.0) }
+            if glow == .dim || glow == .off { return (3.0, 1.0) }
             switch expression {
             case .curious:  return (0.85, 1.20)
             case .hopeful:  return (0.70, 1.18)

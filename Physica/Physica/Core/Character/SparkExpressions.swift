@@ -21,8 +21,9 @@ enum SparkExpression: String, Codable, Hashable, CaseIterable {
 /// A dim Spark with a curious expression is M1's opening (pre-tap).
 /// A bright Spark with resolved is M7's final restoration.
 enum GlowState: String, Codable, Hashable {
-    case dim       // pre-awakening, no halo (M1 opening)
-    case warm      // just-woken (M1 after first activation)
+    case off       // no halo, normal body (awake but not lit by an external beam)
+    case dim       // pre-awakening, no halo + desaturated body
+    case warm      // just-woken (M1 after first activation), soft halo
     case stable    // mid-realm, in-rhythm — the default
-    case bright    // climactic moments
+    case bright    // climactic moments / beam currently on him
 }
