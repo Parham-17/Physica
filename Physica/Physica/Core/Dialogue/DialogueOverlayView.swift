@@ -22,9 +22,12 @@ struct DialogueOverlayView: View {
     private var activeOverlay: some View {
         if let beat = controller.activeBeat, let line = controller.currentLine {
             ZStack(alignment: .bottomTrailing) {
-                Color.black.opacity(0.001)  // capture taps across full overlay
+                // Absorb taps that miss the dialog card so they don't leak
+                // through to the gameplay scene below — but DON'T advance the
+                // dialogue. The player has to tap the card itself.
+                Color.black.opacity(0.001)
                     .contentShape(Rectangle())
-                    .onTapGesture { controller.advance() }
+                    .onTapGesture { /* intentionally empty — absorb only */ }
 
                 HStack(alignment: .bottom, spacing: -28) {
                     textPanel(line: line, beat: beat)
@@ -32,6 +35,8 @@ struct DialogueOverlayView: View {
                 }
                 .padding(.horizontal, Spacing.md)
                 .padding(.bottom, Spacing.lg)
+                .contentShape(Rectangle())
+                .onTapGesture { controller.advance() }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .animation(.spring(response: 0.55, dampingFraction: 0.85), value: beat.id)
             }
