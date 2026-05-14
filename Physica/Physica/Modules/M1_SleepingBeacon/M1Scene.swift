@@ -123,11 +123,16 @@ struct M1Scene: View {
     /// Drives the continuous charging haptic each frame: starts the pattern
     /// when a crystal begins charging, smoothly ramps intensity with progress,
     /// stops the moment no crystal is being charged.
+    ///
+    /// The intensity + sharpness curves are non-linear (`progress^1.6` and
+    /// `progress^1.4`) so the buzz starts barely-there and builds into a
+    /// noticeable peak — felt as a wave rising, not a flat hum.
     private func updateChargingHaptic() {
         let progress = activelyChargingProgress()
         if progress > 0.01 {
-            let intensity = Float(0.30 + Double(progress) * 0.70)   // 0.30 → 1.0
-            let sharpness = Float(0.35 + Double(progress) * 0.45)   // 0.35 → 0.80 (more crisp near full)
+            let p = Double(progress)
+            let intensity = Float(0.10 + pow(p, 1.6) * 0.90)   // 0.10 → 1.0, slow-then-fast ramp
+            let sharpness = Float(0.15 + pow(p, 1.4) * 0.65)   // 0.15 → 0.80
             if chargingHaptics.isRunning {
                 chargingHaptics.update(intensity: intensity, sharpness: sharpness)
             } else {
