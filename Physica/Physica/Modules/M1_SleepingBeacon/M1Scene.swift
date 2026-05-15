@@ -14,6 +14,7 @@ struct M1Scene: View {
     @State private var coordinator = M1Coordinator()
     @State private var hasDraggedYet = false
     @State private var chargingHaptics = ChargingHaptic()
+    @State private var lastDiscoveryAt: Date = Date()
     @Environment(DialogueController.self) private var dialogue
     @Environment(NarrativeFlags.self) private var flags
     @Environment(AppRouter.self) private var router
@@ -41,6 +42,10 @@ struct M1Scene: View {
 
                     if shouldShowAimHint {
                         aimHintView(in: proxy.size)
+                    }
+
+                    if shouldShowReactiveCaption {
+                        reactiveCaptionView(in: proxy.size)
                     }
                 }
                 .contentShape(Rectangle())
@@ -76,8 +81,14 @@ struct M1Scene: View {
         .navigationBarBackButtonHidden(true)
         .toolbar { backButtonToolbar }
         .onAppear { setUpScene() }
-        .onChange(of: coordinator.sparkAwakened) { _, _ in tryFireQueuedBeats() }
+        .onChange(of: coordinator.sparkAwakened) { _, _ in
+            tryFireQueuedBeats()
+            lastDiscoveryAt = Date()
+        }
         .onChange(of: coordinator.beaconRestored) { _, _ in tryFireQueuedBeats() }
+        .onChange(of: coordinator.discoveredReceiverIDs.count) { _, _ in
+            lastDiscoveryAt = Date()
+        }
         .onChange(of: dialogue.activeBeat) { oldBeat, newBeat in
             handleBeatTransition(from: oldBeat, to: newBeat)
         }
@@ -113,11 +124,86 @@ struct M1Scene: View {
         while !Task.isCancelled, coordinator.phase == .awake {
             coordinator.tickPuzzle(dt: dt)
             updateChargingHaptic()
+            checkReactiveCommentary()
             try? await Task.sleep(nanoseconds: 16_000_000)
         }
 
         // Phase changed — make sure the continuous haptic doesn't keep playing.
         chargingHaptics.stop()
+    }
+
+    /// Game-state-driven Spark commentary that appears as a floating caption.
+    /// Each line is one-shot per play; the dialogue overlay suppresses them.
+    private func checkReactiveCommentary() {
+        // First time the beam hits the pillar
+        if coordinator.beamBlockedByPillar {
+            coordinator.showReaction(
+                "The light stopped at the stone.",
+                key: "m1_pillar_hit"
+            )
+        }
+
+        // First crystal discovered
+        if !coordinator.discoveredReceiverIDs.isEmpty {
+            coordinator.showReaction(
+                "There — the light brought it back.",
+                key: "m1_first_crystal"
+            )
+        }
+
+        // All 3 crystals discovered but Spark still asleep
+        if coordinator.discoveredReceiverIDs.count == coordinator.receivers.count,
+           !coordinator.sparkAwakened {
+            coordinator.showReaction(
+                "Don't forget — I need light too.",
+                key: "m1_need_light"
+            )
+        }
+
+        // Player has been actively aiming for ~5s with no new discovery
+        if coordinator.lanternIsOn,
+           Date().timeIntervalSince(lastDiscoveryAt) > 5.0,
+           !coordinator.beaconRestored {
+            coordinator.showReaction(
+                "Light only shows what it touches. Try a slower sweep.",
+                key: "m1_slow_sweep"
+            )
+        }
+    }
+
+    /// True iff the caption should currently render — hidden while a main
+    /// dialogue beat is active so the two systems don't fight visually.
+    private var shouldShowReactiveCaption: Bool {
+        coordinator.reactiveCaption != nil && dialogue.activeBeat == nil
+    }
+
+    /// Floating caption near the top of the play area. Springs in, lingers,
+    /// fades out. The token ID forces a fresh transition on every new caption.
+    private func reactiveCaptionView(in size: CGSize) -> some View {
+        Group {
+            if let caption = coordinator.reactiveCaption {
+                Text(caption)
+                    .font(.bodyGame)
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .background(
+                        Capsule()
+                            .fill(Color.realmMid.opacity(0.92))
+                            .overlay(Capsule().stroke(Color.white.opacity(0.10), lineWidth: 1))
+                            .shadow(color: .black.opacity(0.45), radius: 10, y: 3)
+                    )
+                    .id(coordinator.reactiveCaptionToken)
+                    .transition(
+                        .scale(scale: 0.85).combined(with: .opacity)
+                    )
+            }
+        }
+        .frame(maxWidth: size.width * 0.85)
+        .position(x: size.width * 0.5, y: size.height * 0.12)
+        .animation(.spring(response: 0.45, dampingFraction: 0.78), value: coordinator.reactiveCaptionToken)
+        .allowsHitTesting(false)
     }
 
     /// Drives the continuous charging haptic each frame: starts the pattern

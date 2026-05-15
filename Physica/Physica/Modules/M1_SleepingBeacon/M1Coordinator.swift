@@ -81,6 +81,52 @@ final class M1Coordinator {
         sparkAwakened && discoveredReceiverIDs.count == receivers.count
     }
 
+    // MARK: - Reactive commentary
+
+    /// Short, in-the-moment line that appears above the play area as a floating
+    /// caption. Set by `showReaction(_:key:)`; auto-cleared ~2.7s later.
+    private(set) var reactiveCaption: String? = nil
+
+    /// Incremented each time a new caption fires — used by the view to re-run
+    /// the entrance transition even when the text would otherwise be equal.
+    private(set) var reactiveCaptionToken: Int = 0
+
+    /// Keys for one-shot reactions that have already fired this play. Reactions
+    /// that should fire multiple times don't need to register here.
+    private var shownReactionKeys: Set<String> = []
+
+    /// True iff the lantern is on and the beam was cut short by a blocker (the
+    /// pillar). Detected by length: unobstructed beam reaches `maxDistance`,
+    /// blocked beam stops well short.
+    var beamBlockedByPillar: Bool {
+        guard lanternIsOn, let segment = currentBeam.segments.first else { return false }
+        return segment.length < 1.5
+    }
+
+    /// Fire a reactive caption. `key` ensures one-shot reactions don't repeat.
+    /// Auto-clears after 2.7 seconds (unless another caption overrides it).
+    @MainActor
+    func showReaction(_ text: String, key: String) {
+        if shownReactionKeys.contains(key) { return }
+        shownReactionKeys.insert(key)
+        reactiveCaption = text
+        reactiveCaptionToken += 1
+        let token = reactiveCaptionToken
+
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 2_700_000_000)
+            guard let self else { return }
+            if self.reactiveCaptionToken == token {
+                self.reactiveCaption = nil
+            }
+        }
+    }
+
+    func clearReactionsForRetry() {
+        shownReactionKeys.removeAll()
+        reactiveCaption = nil
+    }
+
     // MARK: - Walking phase
 
     private(set) var sparkWalkPosition: CGPoint = .zero
